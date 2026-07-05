@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shadow Club Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hud-top">
+        <h1>Shadow Club Runner</h1>
+        <p class="subtitle">Mystery Escape Side-Scroller</p>
+      </header>
+
+      <section id="menu" class="menu-panel" aria-label="Skin selection panel">
+        <h2>Choose Your Skin</h2>
+        <p>
+          Unlock skins with Mystery Keys. Use arrow keys in game: left/right move, up jump,
+          down roll.
+        </p>
+        <p id="missionNote" class="mission-note">Tip: roll under low hazards and jump over spikes.</p>
+        <div class="party-select-row">
+          <label for="partySize">Party Size</label>
+          <select id="partySize" class="party-select" aria-label="Select party size">
+            <option value="1">1 Player</option>
+            <option value="2">2 Players</option>
+            <option value="3">3 Players</option>
+            <option value="4">4 Players</option>
+          </select>
+        </div>
+        <div id="skinList" class="skin-grid"></div>
+        <div class="menu-actions">
+          <button id="startBtn" class="btn-primary">Start Mission</button>
+          <div class="currency">Mystery Keys: <span id="keyCount">0</span></div>
+        </div>
+      </section>
+
+      <section class="game-wrap" aria-label="Game view">
+        <canvas id="game" width="960" height="540"></canvas>
+        <div id="overlay" class="overlay hidden">Paused</div>
+      </section>
+
+      <section class="controls-note">
+        <span>P1: Arrows</span>
+        <span>P2: WASD</span>
+        <span>P3: IJKL</span>
+        <span>P4: TFGH</span>
+        <span>E: Interact with doors</span>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
