@@ -37,6 +37,41 @@ const skins = [
     cost: 50,
     unlockedByDefault: false,
   },
+  {
+    id: "volt",
+    name: "Volt Runner",
+    colors: ["#ffe676", "#ff9f1a"],
+    cost: 80,
+    unlockedByDefault: false,
+  },
+  {
+    id: "frost",
+    name: "Frost Jumper",
+    colors: ["#b6f0ff", "#4ea4ff"],
+    cost: 110,
+    unlockedByDefault: false,
+  },
+  {
+    id: "shadow",
+    name: "Shadow Glider",
+    colors: ["#95a0b8", "#28354d"],
+    cost: 140,
+    unlockedByDefault: false,
+  },
+  {
+    id: "nova",
+    name: "Nova Hero",
+    colors: ["#ff9ad4", "#9f46ff"],
+    cost: 175,
+    unlockedByDefault: false,
+  },
+];
+
+const upgrades = [
+  { id: "speed", name: "Turbo Shoes", cost: 25, maxLevel: 5, note: "+Run speed" },
+  { id: "jump", name: "Spring Boots", cost: 30, maxLevel: 5, note: "+Jump height" },
+  { id: "shield", name: "Shield Coat", cost: 35, maxLevel: 3, note: "-Trap key loss" },
+  { id: "dash", name: "Dash Core", cost: 40, maxLevel: 4, note: "+Roll boost" },
 ];
 
 const defaultSave = {
@@ -45,6 +80,12 @@ const defaultSave = {
   partySize: 1,
   selectedLevel: 1,
   unlockedLevel: 1,
+  upgrades: {
+    speed: 0,
+    jump: 0,
+    shield: 0,
+    dash: 0,
+  },
   unlockedSkins: skins.filter((skin) => skin.unlockedByDefault).map((skin) => skin.id),
 };
 
@@ -73,6 +114,12 @@ function loadSave() {
       unlockedSkins: Array.isArray(parsed.unlockedSkins)
         ? parsed.unlockedSkins.filter((id) => skins.some((skin) => skin.id === id))
         : defaultSave.unlockedSkins,
+      upgrades: {
+        speed: Number.isInteger(parsed?.upgrades?.speed) ? Math.max(0, Math.min(5, parsed.upgrades.speed)) : 0,
+        jump: Number.isInteger(parsed?.upgrades?.jump) ? Math.max(0, Math.min(5, parsed.upgrades.jump)) : 0,
+        shield: Number.isInteger(parsed?.upgrades?.shield) ? Math.max(0, Math.min(3, parsed.upgrades.shield)) : 0,
+        dash: Number.isInteger(parsed?.upgrades?.dash) ? Math.max(0, Math.min(4, parsed.upgrades.dash)) : 0,
+      },
     };
   } catch {
     return { ...defaultSave };
@@ -91,6 +138,7 @@ const game = {
   missionNote: document.getElementById("missionNote"),
   partySizeSelect: document.getElementById("partySize"),
   levelSelect: document.getElementById("levelSelect"),
+  upgradeList: document.getElementById("upgradeList"),
   addPlayerBtn: document.getElementById("addPlayerBtn"),
   removePlayerBtn: document.getElementById("removePlayerBtn"),
   startBtn: document.getElementById("startBtn"),
@@ -167,6 +215,18 @@ function createPlayer(index) {
       down: false,
     },
   };
+}
+
+function applyPlayerUpgrades(player) {
+  const speedLevel = game.save.upgrades.speed || 0;
+  const jumpLevel = game.save.upgrades.jump || 0;
+  const dashLevel = game.save.upgrades.dash || 0;
+
+  player.maxRunSpeed += speedLevel * 0.45;
+  player.accelGround += speedLevel * 0.05;
+  player.accelAir += speedLevel * 0.025;
+  player.jumpPower += jumpLevel * 0.75;
+  player.rollBoost = 2.3 + dashLevel * 0.4;
 }
 
 function setupWorld(levelNumber = 1) {
@@ -397,9 +457,56 @@ function renderLevelOptions() {
     game.levelSelect.appendChild(option);
   }
 
-  const selected = Math.max(1, Math.min(maxUnlocked, game.save.selectedLevel || 1));
+  const selected = maxUnlocked;
   game.save.selectedLevel = selected;
   game.levelSelect.value = String(selected);
+}
+
+function renderUpgradeShop() {
+  game.upgradeList.innerHTML = "";
+
+  for (const upgrade of upgrades) {
+    const level = game.save.upgrades[upgrade.id] || 0;
+    const maxed = level >= upgrade.maxLevel;
+    const cost = upgrade.cost + level * 10;
+
+    const card = document.createElement("article");
+    card.className = "skin-card";
+
+    const name = document.createElement("div");
+    name.className = "skin-name";
+    name.textContent = upgrade.name;
+
+    const state = document.createElement("div");
+    state.className = "skin-state";
+    state.textContent = `${upgrade.note} • Lv ${level}/${upgrade.maxLevel}`;
+
+    const button = document.createElement("button");
+    button.className = "skin-btn";
+
+    if (maxed) {
+      button.classList.add("select");
+      button.textContent = "Maxed";
+      button.disabled = true;
+    } else if (game.save.keys >= cost) {
+      button.classList.add("unlock");
+      button.textContent = `Buy (${cost})`;
+      button.addEventListener("click", () => {
+        game.save.keys -= cost;
+        game.save.upgrades[upgrade.id] = level + 1;
+        saveProgress();
+        renderSkinMenu();
+        renderUpgradeShop();
+      });
+    } else {
+      button.classList.add("locked");
+      button.textContent = `Need ${cost - game.save.keys} more`;
+      button.disabled = true;
+    }
+
+    card.append(name, state, button);
+    game.upgradeList.appendChild(card);
+  }
 }
 
 function setMessage(text, frames = 120) {
@@ -491,7 +598,11 @@ function startGame() {
   game.save.partySize = selectedParty;
   game.save.selectedLevel = selectedLevel;
   game.currentLevel = selectedLevel;
-  game.players = Array.from({ length: selectedParty }, (_, index) => createPlayer(index));
+  game.players = Array.from({ length: selectedParty }, (_, index) => {
+    const player = createPlayer(index);
+    applyPlayerUpgrades(player);
+    return player;
+  });
   game.score = 0;
   game.distance = 0;
   game.cameraX = 0;
@@ -526,6 +637,7 @@ function finishRun() {
   renderLevelOptions();
   saveProgress();
   renderSkinMenu();
+  renderUpgradeShop();
 }
 
 function rectsOverlap(a, b) {
@@ -562,8 +674,9 @@ function triggerRespawn(player, reason) {
   game.comboTimer = 0;
 
   if (reason === "trap") {
-    game.save.keys = Math.max(0, game.save.keys - 2);
-    setMessage(`${player.label} hit a trap! Lost 2 keys.`);
+    const penalty = Math.max(0, 2 - (game.save.upgrades.shield || 0));
+    game.save.keys = Math.max(0, game.save.keys - penalty);
+    setMessage(`${player.label} hit a trap! Lost ${penalty} keys.`);
   } else {
     setMessage(`${player.label} fell. Respawned at checkpoint.`);
   }
@@ -641,7 +754,7 @@ function updatePlayer(player) {
   if (p.input.down && p.onGround && p.rollCooldown <= 0 && !p.rolling) {
     p.rollTimer = 16;
     p.rollCooldown = 28;
-    p.vx += 2.3 * p.facing;
+    p.vx += (p.rollBoost || 2.3) * p.facing;
   }
 
   if (p.rolling) p.vx *= 1.04;
@@ -739,6 +852,18 @@ function updatePlayer(player) {
       if (!game.discoveredKeyIds.has(key.id)) {
         game.discoveredKeyIds.add(key.id);
         game.save.keys += 1;
+      }
+
+      const magnetRadius = 14 + (game.save.upgrades.speed || 0) * 4;
+      for (const nearby of game.keysInLevel) {
+        if (nearby.collected || nearby.id === key.id) continue;
+        if (Math.abs(nearby.x - p.x) < magnetRadius && Math.abs(nearby.y - p.y) < magnetRadius) {
+          nearby.collected = true;
+          if (!game.discoveredKeyIds.has(nearby.id)) {
+            game.discoveredKeyIds.add(nearby.id);
+            game.save.keys += 1;
+          }
+        }
       }
     }
   }
@@ -1280,6 +1405,7 @@ function bindEvents() {
   game.startBtn.addEventListener("click", startGame);
   game.partySizeSelect.value = String(game.save.partySize || 1);
   renderLevelOptions();
+  renderUpgradeShop();
   game.partySizeSelect.addEventListener("change", () => {
     setPartySize(Number(game.partySizeSelect.value) || 1);
   });
@@ -1305,6 +1431,7 @@ function bindEvents() {
 function init() {
   bindEvents();
   renderSkinMenu();
+  renderUpgradeShop();
   render();
   update();
 }

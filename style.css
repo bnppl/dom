@@ -116,6 +116,12 @@ body {
   gap: 10px;
 }
 
+.shop-title {
+  margin: 14px 0 10px;
+  color: #ffe9b9;
+  letter-spacing: 0.02em;
+}
+
 .skin-card {
   background: rgba(19, 42, 70, 0.9);
   border: 2px solid rgba(255, 255, 255, 0.15);
