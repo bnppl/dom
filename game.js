@@ -1,5 +1,5 @@
 const STORAGE_KEY = "shadowClubRunnerSave";
-const TOTAL_LEVELS = 3;
+const TOTAL_LEVELS = 20;
 
 const CONTROL_SCHEMES = [
   { label: "P1", left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown" },
@@ -389,59 +389,122 @@ function setupWorld(levelNumber = 1) {
     return;
   }
 
-  game.worldWidth = 8200;
+  const difficulty = levelNumber - 2;
+  const levelShiftX = 220 + difficulty * 95;
+  const levelLift = Math.min(170, 70 + difficulty * 5);
+
+  game.worldWidth = 8200 + difficulty * 140;
   game.platforms = basePlatforms
     .map((platform, i) => ({
       ...platform,
-      x: platform.x + 220 + (i % 5) * 22,
-      y: Math.max(95, platform.y - 80 + ((i % 4) - 1) * 18),
+      x: platform.x + levelShiftX + (i % 5) * (18 + difficulty),
+      y: Math.max(90, platform.y - levelLift + ((i + difficulty) % 4 - 1) * 14),
     }))
     .concat([
-      { x: 6900, y: 260, width: 180, height: 20 },
-      { x: 7160, y: 210, width: 180, height: 20 },
-      { x: 7400, y: 170, width: 180, height: 20 },
-      { x: 7660, y: 220, width: 180, height: 20 },
-      { x: 7920, y: 300, width: 220, height: 22 },
+      { x: game.worldWidth - 1150, y: 260, width: 180, height: 20 },
+      { x: game.worldWidth - 910, y: 210, width: 180, height: 20 },
+      { x: game.worldWidth - 670, y: 170, width: 180, height: 20 },
+      { x: game.worldWidth - 430, y: 220, width: 180, height: 20 },
+      { x: game.worldWidth - 190, y: 300, width: 220, height: 22 },
     ]);
 
   game.keysInLevel = baseKeys.map((key, i) => ({
     ...key,
-    x: key.x + 260 + (i % 3) * 40,
-    y: Math.max(90, key.y - 80 + (i % 5) * 10),
+    x: key.x + levelShiftX + (i % 3) * (30 + difficulty * 2),
+    y: Math.max(86, key.y - levelLift + (i % 5) * 8),
     collected: false,
   }));
 
   game.hazards = baseHazards.map((hazard, i) => ({
     ...hazard,
-    x: hazard.x + 240 + (i % 3) * 30,
-    y: hazard.type === "lowLaser" ? Math.max(120, hazard.y - 65) : hazard.y,
+    x: hazard.x + levelShiftX + (i % 3) * 26,
+    y: hazard.type === "lowLaser" ? Math.max(118, hazard.y - Math.floor(levelLift * 0.75)) : hazard.y,
   }));
 
-  game.enemies = baseEnemies.map((enemy, i) => ({
-    ...enemy,
-    x: enemy.x + 280 + i * 100,
-    minX: enemy.minX + 280 + i * 100,
-    maxX: enemy.maxX + 280 + i * 100,
-    active: true,
-  }));
+  game.enemies = baseEnemies.map((enemy, i) => {
+    const enemyShift = levelShiftX + i * 90;
+    const velocityBoost = Math.min(1.1, difficulty * 0.05);
+    return {
+      ...enemy,
+      x: enemy.x + enemyShift,
+      minX: enemy.minX + enemyShift,
+      maxX: enemy.maxX + enemyShift,
+      vx: enemy.vx + velocityBoost,
+      active: true,
+    };
+  });
 
+  const cp1 = Math.floor(game.worldWidth * 0.2);
+  const cp2 = Math.floor(game.worldWidth * 0.45);
+  const cp3 = Math.floor(game.worldWidth * 0.68);
+  const cp4 = Math.floor(game.worldWidth * 0.9);
   game.checkpoints = [
-    { x: 1500, active: false },
-    { x: 3600, active: false },
-    { x: 5800, active: false },
-    { x: 7800, active: false },
+    { x: cp1, active: false },
+    { x: cp2, active: false },
+    { x: cp3, active: false },
+    { x: cp4, active: false },
   ];
 
+  const d1Code = String(200 + levelNumber * 7).padStart(3, "0");
+  const d2Code = String(500 + levelNumber * 9).padStart(3, "0");
+  const d3Code = String(700 + levelNumber * 5).padStart(3, "0");
+
+  const d1X = Math.floor(game.worldWidth * 0.31);
+  const d2X = Math.floor(game.worldWidth * 0.6);
+  const d3X = Math.floor(game.worldWidth * 0.88);
+
   game.doors = [
-    { id: "d1", x: 2580, y: 160, width: 34, height: 280, code: "219", solved: false, hint: "Door-1 code: 2 _ 9" },
-    { id: "d2", x: 5320, y: 130, width: 34, height: 310, code: "764", solved: false, hint: "Door-2 code: 7 6 _" },
-    { id: "d3", x: 7940, y: 150, width: 34, height: 290, code: "845", solved: false, hint: "Door-3 code: 8 _ 5" },
+    {
+      id: "d1",
+      x: d1X,
+      y: 150,
+      width: 34,
+      height: 290,
+      code: d1Code,
+      solved: false,
+      hint: `Door-1 code: ${d1Code[0]} _ ${d1Code[2]}`,
+    },
+    {
+      id: "d2",
+      x: d2X,
+      y: 130,
+      width: 34,
+      height: 310,
+      code: d2Code,
+      solved: false,
+      hint: `Door-2 code: ${d2Code[0]} ${d2Code[1]} _`,
+    },
+    {
+      id: "d3",
+      x: d3X,
+      y: 140,
+      width: 34,
+      height: 300,
+      code: d3Code,
+      solved: false,
+      hint: `Door-3 code: ${d3Code[0]} _ ${d3Code[2]}`,
+    },
   ];
 
   game.clueMarkers = [
-    { x: 2360, y: 110, text: "Door-1 clue: middle digit is 1. You need to drop and return.", shown: false },
-    { x: 5640, y: 100, text: "Door-2 clue: last digit is 4. Backtrack to open it.", shown: false },
-    { x: 8120, y: 120, text: "Door-3 clue: middle digit is 4. Final return unlock.", shown: false },
+    {
+      x: d1X - 180,
+      y: 110,
+      text: `Door-1 clue: middle digit is ${d1Code[1]}. Climb up then backtrack.`,
+      shown: false,
+    },
+    {
+      x: d2X + 260,
+      y: 100,
+      text: `Door-2 clue: last digit is ${d2Code[2]}. Return to unlock.`,
+      shown: false,
+    },
+    {
+      x: d3X + 170,
+      y: 120,
+      text: `Door-3 clue: middle digit is ${d3Code[1]}. Final backtrack lock.`,
+      shown: false,
+    },
   ];
 }
 
