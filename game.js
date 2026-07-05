@@ -123,23 +123,26 @@ function createPlayer(index) {
     height: 74,
     vx: 0,
     vy: 0,
-    maxRunSpeed: 6.4,
-    accelGround: 0.92,
-    accelAir: 0.46,
-    friction: 0.8,
-    jumpPower: 13.6,
-    jumpCutFactor: 0.53,
+    maxRunSpeed: 8.4,
+    accelGround: 1.1,
+    accelAir: 0.62,
+    friction: 0.78,
+    jumpPower: 15,
+    jumpCutFactor: 0.5,
     coyoteFrames: 8,
-    jumpBufferFrames: 8,
+    jumpBufferFrames: 10,
     onGround: false,
+    onWall: false,
+    wallDir: 0,
     coyoteLeft: 0,
     jumpBufferLeft: 0,
     facing: 1,
     rolling: false,
     rollTimer: 0,
     rollCooldown: 0,
-    maxFallSpeed: 17,
+    maxFallSpeed: 18,
     invulnerableFrames: 0,
+    stepFrame: 0,
     input: {
       left: false,
       right: false,
@@ -165,6 +168,10 @@ function setupWorld() {
     { x: 4900, y: 360, width: 240, height: 20 },
     { x: 5450, y: 310, width: 210, height: 20 },
     { x: 5980, y: 370, width: 280, height: 22 },
+    { x: 840, y: 230, width: 22, height: 210 },
+    { x: 2050, y: 155, width: 22, height: 225 },
+    { x: 4270, y: 135, width: 22, height: 265 },
+    { x: 6210, y: 170, width: 22, height: 240 },
   ];
 
   game.keysInLevel = [
@@ -364,6 +371,8 @@ function triggerRespawn(player, reason) {
   player.vx = 0;
   player.vy = 0;
   player.rollTimer = 0;
+  player.onWall = false;
+  player.wallDir = 0;
   player.input.upPressed = false;
   player.invulnerableFrames = 75;
   game.combo = 0;
@@ -460,7 +469,14 @@ function updatePlayer(player) {
   if (p.onGround) p.coyoteLeft = p.coyoteFrames;
   else if (p.coyoteLeft > 0) p.coyoteLeft -= 1;
 
-  if (p.jumpBufferLeft > 0 && p.coyoteLeft > 0) {
+  if (p.jumpBufferLeft > 0 && p.onWall && !p.onGround) {
+    p.vy = -p.jumpPower;
+    p.vx = -p.wallDir * p.maxRunSpeed;
+    p.facing = -p.wallDir;
+    p.onWall = false;
+    p.coyoteLeft = 0;
+    p.jumpBufferLeft = 0;
+  } else if (p.jumpBufferLeft > 0 && p.coyoteLeft > 0) {
     p.vy = -p.jumpPower;
     p.onGround = false;
     p.coyoteLeft = 0;
@@ -476,6 +492,7 @@ function updatePlayer(player) {
   p.y += p.vy;
 
   p.onGround = false;
+  p.onWall = false;
 
   if (p.y + p.height >= game.groundY) {
     p.y = game.groundY - p.height;
@@ -495,11 +512,15 @@ function updatePlayer(player) {
     } else if (prevX + p.width <= platform.x && p.x + p.width > platform.x) {
       p.x = platform.x - p.width;
       p.vx = 0;
+      if (!p.onGround) { p.onWall = true; p.wallDir = 1; }
     } else if (prevX >= platform.x + platform.width && p.x < platform.x + platform.width) {
       p.x = platform.x + platform.width;
       p.vx = 0;
+      if (!p.onGround) { p.onWall = true; p.wallDir = -1; }
     }
   }
+
+  if (p.onWall && !p.onGround && p.vy > 3) p.vy = 3;
 
   for (const checkpoint of game.checkpoints) {
     if (!checkpoint.active && p.x >= checkpoint.x) {
@@ -570,6 +591,8 @@ function updatePlayer(player) {
 
   p.x = Math.max(0, Math.min(game.worldWidth - p.width, p.x));
 
+  if (p.onGround && Math.abs(p.vx) > 0.5) p.stepFrame += 1;
+
   if (p.y > game.canvas.height + 200) {
     triggerRespawn(p, "fall");
   }
@@ -618,6 +641,191 @@ function handleDoorInteraction() {
     setMessage("Wrong code. -1 key. Search for clues.");
     saveProgress();
   }
+}
+
+function drawStickman(ctx, player, color1) {
+  const isBlinking = player.invulnerableFrames > 0 && player.invulnerableFrames % 6 < 3;
+  if (isBlinking) return;
+
+  const cx = Math.round(player.x + player.width / 2);
+  const bot = Math.round(player.y + player.height);
+  const f = player.facing;
+
+  ctx.save();
+  ctx.strokeStyle = color1;
+  ctx.fillStyle = color1;
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (player.rolling) {
+    const cy = bot - 20;
+    ctx.beginPath();
+    ctx.arc(cx + f * 6, cy - 14, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 4, cy - 6);
+    ctx.lineTo(cx - f * 4, cy + 8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 2, cy - 2);
+    ctx.lineTo(cx + f * 18, cy + 4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 2, cy - 2);
+    ctx.lineTo(cx - f * 8, cy + 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - f * 4, cy + 8);
+    ctx.lineTo(cx + f * 10, cy + 18);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - f * 4, cy + 8);
+    ctx.lineTo(cx - f * 10, cy + 16);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (player.onWall && !player.onGround) {
+    const headY = bot - 68;
+    const neckY = bot - 54;
+    const hipY = bot - 34;
+    ctx.beginPath();
+    ctx.arc(cx + f * 5, headY, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 3, headY + 9);
+    ctx.lineTo(cx, hipY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 2, neckY);
+    ctx.lineTo(cx + f * 20, neckY + 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 2, neckY);
+    ctx.lineTo(cx - f * 12, neckY + 10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, hipY);
+    ctx.lineTo(cx + f * 12, hipY + 18);
+    ctx.lineTo(cx + f * 8, bot);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, hipY);
+    ctx.lineTo(cx - f * 6, hipY + 18);
+    ctx.lineTo(cx - f * 10, bot);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (!player.onGround) {
+    const rising = player.vy < 0;
+    const headY = bot - 68;
+    const neckY = bot - 54;
+    const hipY = bot - 34;
+    ctx.beginPath();
+    ctx.arc(cx, headY, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx, headY + 9);
+    ctx.lineTo(cx, hipY);
+    ctx.stroke();
+    if (rising) {
+      ctx.beginPath();
+      ctx.moveTo(cx, neckY);
+      ctx.lineTo(cx - f * 18, neckY + 8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, neckY);
+      ctx.lineTo(cx - f * 12, neckY + 16);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, hipY);
+      ctx.lineTo(cx + 12, hipY + 12);
+      ctx.lineTo(cx + 8, hipY + 26);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, hipY);
+      ctx.lineTo(cx - 10, hipY + 10);
+      ctx.lineTo(cx - 6, hipY + 24);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(cx, neckY);
+      ctx.lineTo(cx + 20, neckY - 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, neckY);
+      ctx.lineTo(cx - 20, neckY - 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, hipY);
+      ctx.lineTo(cx + 18, hipY + 22);
+      ctx.lineTo(cx + 14, bot);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, hipY);
+      ctx.lineTo(cx - 18, hipY + 22);
+      ctx.lineTo(cx - 14, bot);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  const headY = bot - 68;
+  const neckY = bot - 54;
+  const hipY = bot - 36;
+  const speed = Math.abs(player.vx);
+  const swing = speed > 0.4 ? Math.sin(player.stepFrame * 0.28) * 0.65 : 0;
+  const leanX = speed > 0.4 ? f * 4 : 0;
+
+  ctx.beginPath();
+  ctx.arc(cx + leanX * 0.6, headY, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx + leanX * 0.4, headY + 9);
+  ctx.lineTo(cx, hipY);
+  ctx.stroke();
+
+  const armOff = -swing;
+  ctx.beginPath();
+  ctx.moveTo(cx + leanX * 0.3, neckY);
+  ctx.lineTo(
+    cx + leanX * 0.3 + f * 16 * Math.cos(armOff + 0.5),
+    neckY + 12 + Math.sin(armOff) * 10
+  );
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + leanX * 0.3, neckY);
+  ctx.lineTo(
+    cx + leanX * 0.3 - f * 16 * Math.cos(armOff - 0.5),
+    neckY + 12 - Math.sin(armOff) * 10
+  );
+  ctx.stroke();
+
+  const fa = swing + 0.4;
+  const fkx = cx + Math.sin(fa) * f * 18;
+  const fky = hipY + Math.cos(Math.abs(fa)) * 18;
+  ctx.beginPath();
+  ctx.moveTo(cx, hipY);
+  ctx.lineTo(fkx, fky);
+  ctx.lineTo(fkx + f * Math.sin(fa * 0.6) * 14, fky + 14);
+  ctx.stroke();
+
+  const ba = -swing + 0.4;
+  const bkx = cx - Math.sin(ba) * f * 18;
+  const bky = hipY + Math.cos(Math.abs(ba)) * 18;
+  ctx.beginPath();
+  ctx.moveTo(cx, hipY);
+  ctx.lineTo(bkx, bky);
+  ctx.lineTo(bkx - f * Math.sin(ba * 0.6) * 14, bky + 14);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function drawBackground(ctx) {
@@ -725,29 +933,7 @@ function drawWorld(ctx) {
 
   const currentSkin = skins.find((skin) => skin.id === game.save.selectedSkin) || skins[0];
   for (const player of game.players) {
-    const bodyHeight = player.rolling ? player.height * 0.55 : player.height;
-    const yOffset = player.height - bodyHeight;
-
-    const bodyGradient = ctx.createLinearGradient(
-      player.x,
-      player.y + yOffset,
-      player.x + player.width,
-      player.y + bodyHeight
-    );
-    bodyGradient.addColorStop(0, currentSkin.colors[0]);
-    bodyGradient.addColorStop(1, currentSkin.colors[1]);
-
-    if (!(player.invulnerableFrames > 0 && player.invulnerableFrames % 6 < 3)) {
-      ctx.fillStyle = bodyGradient;
-      ctx.fillRect(player.x, player.y + yOffset, player.width, bodyHeight);
-      ctx.fillStyle = "#0f1c29";
-      ctx.fillRect(player.x + 10, player.y + yOffset + 14, player.width - 20, 8);
-    }
-
-    const eyeX = player.facing === 1 ? player.x + player.width - 14 : player.x + 8;
-    ctx.fillStyle = "#f8f2d5";
-    ctx.fillRect(eyeX, player.y + yOffset + 10, 6, 5);
-
+    drawStickman(ctx, player, currentSkin.colors[0]);
     ctx.fillStyle = "#ecf5ff";
     ctx.font = "700 12px Nunito";
     ctx.fillText(player.label, player.x + 10, player.y - 8);
