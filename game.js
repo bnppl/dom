@@ -79,6 +79,8 @@ const game = {
   keyCount: document.getElementById("keyCount"),
   missionNote: document.getElementById("missionNote"),
   partySizeSelect: document.getElementById("partySize"),
+  addPlayerBtn: document.getElementById("addPlayerBtn"),
+  removePlayerBtn: document.getElementById("removePlayerBtn"),
   startBtn: document.getElementById("startBtn"),
   overlay: document.getElementById("overlay"),
   save: loadSave(),
@@ -155,50 +157,67 @@ function createPlayer(index) {
 
 function setupWorld() {
   game.platforms = [
-    { x: 320, y: 370, width: 180, height: 24 },
-    { x: 650, y: 320, width: 210, height: 22 },
-    { x: 980, y: 390, width: 240, height: 24 },
-    { x: 1450, y: 330, width: 210, height: 22 },
-    { x: 1880, y: 280, width: 170, height: 22 },
-    { x: 2260, y: 355, width: 220, height: 20 },
-    { x: 2700, y: 300, width: 200, height: 20 },
-    { x: 3200, y: 380, width: 260, height: 22 },
-    { x: 3700, y: 330, width: 200, height: 20 },
-    { x: 4300, y: 285, width: 220, height: 22 },
-    { x: 4900, y: 360, width: 240, height: 20 },
-    { x: 5450, y: 310, width: 210, height: 20 },
-    { x: 5980, y: 370, width: 280, height: 22 },
-    { x: 840, y: 230, width: 22, height: 210 },
-    { x: 2050, y: 155, width: 22, height: 225 },
-    { x: 4270, y: 135, width: 22, height: 265 },
-    { x: 6210, y: 170, width: 22, height: 240 },
+    { x: 260, y: 390, width: 200, height: 22 },
+    { x: 520, y: 345, width: 150, height: 20 },
+    { x: 760, y: 300, width: 140, height: 20 },
+    { x: 980, y: 250, width: 160, height: 20 },
+    { x: 1220, y: 210, width: 180, height: 20 },
+    { x: 1460, y: 170, width: 180, height: 20 },
+    { x: 1230, y: 270, width: 120, height: 20 },
+    { x: 1000, y: 320, width: 120, height: 20 },
+    { x: 1720, y: 390, width: 240, height: 22 },
+    { x: 2040, y: 340, width: 170, height: 20 },
+    { x: 2290, y: 290, width: 170, height: 20 },
+    { x: 2520, y: 240, width: 180, height: 20 },
+    { x: 2760, y: 190, width: 200, height: 20 },
+    { x: 3010, y: 250, width: 160, height: 20 },
+    { x: 3260, y: 315, width: 170, height: 20 },
+    { x: 3520, y: 380, width: 240, height: 22 },
+    { x: 3820, y: 330, width: 180, height: 20 },
+    { x: 4070, y: 270, width: 170, height: 20 },
+    { x: 4310, y: 220, width: 170, height: 20 },
+    { x: 4540, y: 170, width: 170, height: 20 },
+    { x: 4320, y: 320, width: 140, height: 20 },
+    { x: 4100, y: 365, width: 150, height: 20 },
+    { x: 4820, y: 390, width: 220, height: 22 },
+    { x: 5110, y: 350, width: 190, height: 20 },
+    { x: 5360, y: 300, width: 190, height: 20 },
+    { x: 5600, y: 245, width: 190, height: 20 },
+    { x: 5840, y: 195, width: 190, height: 20 },
+    { x: 6070, y: 250, width: 160, height: 20 },
+    { x: 6300, y: 315, width: 170, height: 20 },
+    { x: 6540, y: 380, width: 250, height: 22 },
+    { x: 845, y: 220, width: 22, height: 220 },
+    { x: 2460, y: 160, width: 22, height: 210 },
+    { x: 4465, y: 130, width: 22, height: 260 },
+    { x: 6140, y: 165, width: 22, height: 245 },
   ];
 
   game.keysInLevel = [
-    { id: "k1", x: 390, y: 325, collected: false },
-    { id: "k2", x: 760, y: 270, collected: false },
-    { id: "k3", x: 1050, y: 340, collected: false },
-    { id: "k4", x: 1530, y: 280, collected: false },
-    { id: "k5", x: 1930, y: 225, collected: false },
-    { id: "k6", x: 2360, y: 300, collected: false },
-    { id: "k7", x: 2790, y: 245, collected: false },
-    { id: "k8", x: 3340, y: 330, collected: false },
-    { id: "k9", x: 3770, y: 280, collected: false },
-    { id: "k10", x: 4400, y: 235, collected: false },
-    { id: "k11", x: 5000, y: 305, collected: false },
-    { id: "k12", x: 5540, y: 255, collected: false },
-    { id: "k13", x: 6080, y: 320, collected: false },
+    { id: "k1", x: 360, y: 350, collected: false },
+    { id: "k2", x: 830, y: 255, collected: false },
+    { id: "k3", x: 1280, y: 165, collected: false },
+    { id: "k4", x: 1510, y: 125, collected: false },
+    { id: "k5", x: 1870, y: 350, collected: false },
+    { id: "k6", x: 2360, y: 250, collected: false },
+    { id: "k7", x: 2860, y: 150, collected: false },
+    { id: "k8", x: 3330, y: 275, collected: false },
+    { id: "k9", x: 3880, y: 285, collected: false },
+    { id: "k10", x: 4470, y: 125, collected: false },
+    { id: "k11", x: 5200, y: 310, collected: false },
+    { id: "k12", x: 5880, y: 150, collected: false },
+    { id: "k13", x: 6370, y: 270, collected: false },
   ];
 
   game.hazards = [
-    { type: "lowLaser", x: 560, y: 404, width: 90, height: 16 },
-    { type: "spike", x: 1230, y: 420, width: 40, height: 20 },
-    { type: "lowLaser", x: 1730, y: 314, width: 85, height: 16 },
-    { type: "spike", x: 2590, y: 420, width: 40, height: 20 },
-    { type: "lowLaser", x: 3460, y: 364, width: 90, height: 16 },
-    { type: "spike", x: 4040, y: 420, width: 40, height: 20 },
-    { type: "lowLaser", x: 5180, y: 334, width: 90, height: 16 },
-    { type: "spike", x: 5750, y: 420, width: 40, height: 20 },
+    { type: "lowLaser", x: 560, y: 329, width: 80, height: 16 },
+    { type: "spike", x: 1710, y: 420, width: 40, height: 20 },
+    { type: "lowLaser", x: 2300, y: 274, width: 90, height: 16 },
+    { type: "spike", x: 3510, y: 420, width: 40, height: 20 },
+    { type: "lowLaser", x: 4070, y: 344, width: 90, height: 16 },
+    { type: "spike", x: 4820, y: 420, width: 40, height: 20 },
+    { type: "lowLaser", x: 5590, y: 219, width: 90, height: 16 },
+    { type: "spike", x: 6480, y: 420, width: 40, height: 20 },
   ];
 
   game.enemies = [
@@ -210,22 +229,22 @@ function setupWorld() {
   ];
 
   game.checkpoints = [
-    { x: 1200, active: false },
-    { x: 2600, active: false },
-    { x: 4200, active: false },
-    { x: 5600, active: false },
+    { x: 1050, active: false },
+    { x: 2800, active: false },
+    { x: 4500, active: false },
+    { x: 6200, active: false },
   ];
 
   game.doors = [
-    { id: "d1", x: 2080, y: 250, width: 34, height: 190, code: "431", solved: false, hint: "Door-1 code: 431" },
-    { id: "d2", x: 4320, y: 220, width: 34, height: 220, code: "872", solved: false, hint: "Door-2 code: 872" },
-    { id: "d3", x: 6320, y: 210, width: 34, height: 230, code: "590", solved: false, hint: "Door-3 code: 590" },
+    { id: "d1", x: 1660, y: 250, width: 34, height: 190, code: "431", solved: false, hint: "Door-1 code: 4 _ 1" },
+    { id: "d2", x: 3980, y: 220, width: 34, height: 220, code: "872", solved: false, hint: "Door-2 code: 8 7 _" },
+    { id: "d3", x: 6200, y: 210, width: 34, height: 230, code: "590", solved: false, hint: "Door-3 code: 5 _ 0" },
   ];
 
   game.clueMarkers = [
-    { x: 1760, y: 280, text: "Clue found: first lock starts with 4.", shown: false },
-    { x: 3080, y: 250, text: "Clue found: second lock ends with 2.", shown: false },
-    { x: 5350, y: 240, text: "Clue found: last lock starts with 5.", shown: false },
+    { x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false },
+    { x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false },
+    { x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false },
   ];
 }
 
@@ -1086,11 +1105,25 @@ function onKeyUp(event) {
 }
 
 function bindEvents() {
+  function setPartySize(size) {
+    const clamped = Math.max(1, Math.min(4, size));
+    game.save.partySize = clamped;
+    game.partySizeSelect.value = String(clamped);
+    saveProgress();
+  }
+
   game.startBtn.addEventListener("click", startGame);
   game.partySizeSelect.value = String(game.save.partySize || 1);
   game.partySizeSelect.addEventListener("change", () => {
-    game.save.partySize = Math.max(1, Math.min(4, Number(game.partySizeSelect.value) || 1));
-    saveProgress();
+    setPartySize(Number(game.partySizeSelect.value) || 1);
+  });
+  game.addPlayerBtn.addEventListener("click", () => {
+    setPartySize((Number(game.partySizeSelect.value) || 1) + 1);
+    setMessage(`Players ready: ${game.partySizeSelect.value}`);
+  });
+  game.removePlayerBtn.addEventListener("click", () => {
+    setPartySize((Number(game.partySizeSelect.value) || 1) - 1);
+    setMessage(`Players ready: ${game.partySizeSelect.value}`);
   });
 
   window.addEventListener("keydown", onKeyDown);

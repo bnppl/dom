@@ -95,6 +95,20 @@ body {
   font-weight: 700;
 }
 
+.party-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: #16304d;
+  color: #e7f3ff;
+  padding: 6px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.party-btn:hover {
+  background: #214263;
+}
+
 .skin-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
