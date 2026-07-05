@@ -1,4 +1,5 @@
 const STORAGE_KEY = "shadowClubRunnerSave";
+const TOTAL_LEVELS = 3;
 
 const CONTROL_SCHEMES = [
   { label: "P1", left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown" },
@@ -42,6 +43,8 @@ const defaultSave = {
   keys: 0,
   selectedSkin: "rookie",
   partySize: 1,
+  selectedLevel: 1,
+  unlockedLevel: 1,
   unlockedSkins: skins.filter((skin) => skin.unlockedByDefault).map((skin) => skin.id),
 };
 
@@ -58,6 +61,14 @@ function loadSave() {
       partySize:
         Number.isInteger(parsed.partySize) && parsed.partySize >= 1 && parsed.partySize <= 4
           ? parsed.partySize
+          : 1,
+      selectedLevel:
+        Number.isInteger(parsed.selectedLevel) && parsed.selectedLevel >= 1 && parsed.selectedLevel <= TOTAL_LEVELS
+          ? parsed.selectedLevel
+          : 1,
+      unlockedLevel:
+        Number.isInteger(parsed.unlockedLevel) && parsed.unlockedLevel >= 1 && parsed.unlockedLevel <= TOTAL_LEVELS
+          ? parsed.unlockedLevel
           : 1,
       unlockedSkins: Array.isArray(parsed.unlockedSkins)
         ? parsed.unlockedSkins.filter((id) => skins.some((skin) => skin.id === id))
@@ -79,6 +90,7 @@ const game = {
   keyCount: document.getElementById("keyCount"),
   missionNote: document.getElementById("missionNote"),
   partySizeSelect: document.getElementById("partySize"),
+  levelSelect: document.getElementById("levelSelect"),
   addPlayerBtn: document.getElementById("addPlayerBtn"),
   removePlayerBtn: document.getElementById("removePlayerBtn"),
   startBtn: document.getElementById("startBtn"),
@@ -110,6 +122,8 @@ const game = {
   clueMarkers: [],
   respawnX: 100,
   discoveredKeyIds: new Set(),
+  currentLevel: 1,
+  totalLevels: TOTAL_LEVELS,
 };
 
 game.ctx = game.canvas.getContext("2d");
@@ -155,8 +169,8 @@ function createPlayer(index) {
   };
 }
 
-function setupWorld() {
-  game.platforms = [
+function setupWorld(levelNumber = 1) {
+  const basePlatforms = [
     { x: 260, y: 390, width: 200, height: 22 },
     { x: 520, y: 345, width: 150, height: 20 },
     { x: 760, y: 300, width: 140, height: 20 },
@@ -193,7 +207,7 @@ function setupWorld() {
     { x: 6140, y: 165, width: 22, height: 245 },
   ];
 
-  game.keysInLevel = [
+  const baseKeys = [
     { id: "k1", x: 360, y: 350, collected: false },
     { id: "k2", x: 830, y: 255, collected: false },
     { id: "k3", x: 1280, y: 165, collected: false },
@@ -209,7 +223,7 @@ function setupWorld() {
     { id: "k13", x: 6370, y: 270, collected: false },
   ];
 
-  game.hazards = [
+  const baseHazards = [
     { type: "lowLaser", x: 560, y: 329, width: 80, height: 16 },
     { type: "spike", x: 1710, y: 420, width: 40, height: 20 },
     { type: "lowLaser", x: 2300, y: 274, width: 90, height: 16 },
@@ -220,7 +234,7 @@ function setupWorld() {
     { type: "spike", x: 6480, y: 420, width: 40, height: 20 },
   ];
 
-  game.enemies = [
+  const baseEnemies = [
     { id: "e1", type: "sentry", x: 880, y: 390, width: 44, height: 50, vx: 1.3, minX: 820, maxX: 1100, active: true },
     { id: "e2", type: "drone", x: 2100, y: 230, width: 40, height: 34, vx: 1.5, minX: 2000, maxX: 2320, active: true },
     { id: "e3", type: "sentry", x: 3560, y: 280, width: 44, height: 50, vx: 1.6, minX: 3500, maxX: 3880, active: true },
@@ -228,24 +242,164 @@ function setupWorld() {
     { id: "e5", type: "sentry", x: 6150, y: 320, width: 44, height: 50, vx: 1.9, minX: 6040, maxX: 6400, active: true },
   ];
 
-  game.checkpoints = [
+  const baseCheckpoints = [
     { x: 1050, active: false },
     { x: 2800, active: false },
     { x: 4500, active: false },
     { x: 6200, active: false },
   ];
 
-  game.doors = [
+  const baseDoors = [
     { id: "d1", x: 1660, y: 250, width: 34, height: 190, code: "431", solved: false, hint: "Door-1 code: 4 _ 1" },
     { id: "d2", x: 3980, y: 220, width: 34, height: 220, code: "872", solved: false, hint: "Door-2 code: 8 7 _" },
     { id: "d3", x: 6200, y: 210, width: 34, height: 230, code: "590", solved: false, hint: "Door-3 code: 5 _ 0" },
   ];
 
-  game.clueMarkers = [
+  const baseClues = [
     { x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false },
     { x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false },
     { x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false },
   ];
+
+  if (levelNumber === 1) {
+    game.worldWidth = 7000;
+    game.platforms = basePlatforms;
+    game.keysInLevel = baseKeys;
+    game.hazards = baseHazards;
+    game.enemies = baseEnemies;
+    game.checkpoints = baseCheckpoints;
+    game.doors = baseDoors;
+    game.clueMarkers = baseClues;
+    return;
+  }
+
+  if (levelNumber === 2) {
+    game.worldWidth = 7600;
+    game.platforms = basePlatforms
+      .map((platform, i) => ({
+        ...platform,
+        x: platform.x + (i % 4) * 18,
+        y: Math.max(115, platform.y - 50 + ((i % 3) - 1) * 14),
+      }))
+      .concat([
+        { x: 6900, y: 350, width: 210, height: 20 },
+        { x: 7160, y: 300, width: 170, height: 20 },
+        { x: 7400, y: 255, width: 150, height: 20 },
+      ]);
+
+    game.keysInLevel = baseKeys.map((key, i) => ({
+      ...key,
+      x: key.x + (i % 2 === 0 ? 120 : -80),
+      y: Math.max(110, key.y - (i % 4) * 16),
+      collected: false,
+    }));
+
+    game.hazards = baseHazards.map((hazard, i) => ({
+      ...hazard,
+      x: hazard.x + (i % 2 ? 140 : 60),
+      y: hazard.type === "lowLaser" ? Math.max(130, hazard.y - 25) : hazard.y,
+    }));
+
+    game.enemies = baseEnemies.map((enemy, i) => ({
+      ...enemy,
+      x: enemy.x + i * 120,
+      minX: enemy.minX + i * 120,
+      maxX: enemy.maxX + i * 120,
+      active: true,
+    }));
+
+    game.checkpoints = [
+      { x: 1180, active: false },
+      { x: 3200, active: false },
+      { x: 5200, active: false },
+      { x: 7000, active: false },
+    ];
+
+    game.doors = [
+      { id: "d1", x: 2120, y: 220, width: 34, height: 220, code: "642", solved: false, hint: "Door-1 code: 6 _ 2" },
+      { id: "d2", x: 4620, y: 170, width: 34, height: 270, code: "958", solved: false, hint: "Door-2 code: 9 5 _" },
+      { id: "d3", x: 7140, y: 190, width: 34, height: 250, code: "307", solved: false, hint: "Door-3 code: 3 _ 7" },
+    ];
+
+    game.clueMarkers = [
+      { x: 1860, y: 130, text: "Door-1 clue: middle digit is 4. Climb, then return.", shown: false },
+      { x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false },
+      { x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false },
+    ];
+    return;
+  }
+
+  game.worldWidth = 8200;
+  game.platforms = basePlatforms
+    .map((platform, i) => ({
+      ...platform,
+      x: platform.x + 220 + (i % 5) * 22,
+      y: Math.max(95, platform.y - 80 + ((i % 4) - 1) * 18),
+    }))
+    .concat([
+      { x: 6900, y: 260, width: 180, height: 20 },
+      { x: 7160, y: 210, width: 180, height: 20 },
+      { x: 7400, y: 170, width: 180, height: 20 },
+      { x: 7660, y: 220, width: 180, height: 20 },
+      { x: 7920, y: 300, width: 220, height: 22 },
+    ]);
+
+  game.keysInLevel = baseKeys.map((key, i) => ({
+    ...key,
+    x: key.x + 260 + (i % 3) * 40,
+    y: Math.max(90, key.y - 80 + (i % 5) * 10),
+    collected: false,
+  }));
+
+  game.hazards = baseHazards.map((hazard, i) => ({
+    ...hazard,
+    x: hazard.x + 240 + (i % 3) * 30,
+    y: hazard.type === "lowLaser" ? Math.max(120, hazard.y - 65) : hazard.y,
+  }));
+
+  game.enemies = baseEnemies.map((enemy, i) => ({
+    ...enemy,
+    x: enemy.x + 280 + i * 100,
+    minX: enemy.minX + 280 + i * 100,
+    maxX: enemy.maxX + 280 + i * 100,
+    active: true,
+  }));
+
+  game.checkpoints = [
+    { x: 1500, active: false },
+    { x: 3600, active: false },
+    { x: 5800, active: false },
+    { x: 7800, active: false },
+  ];
+
+  game.doors = [
+    { id: "d1", x: 2580, y: 160, width: 34, height: 280, code: "219", solved: false, hint: "Door-1 code: 2 _ 9" },
+    { id: "d2", x: 5320, y: 130, width: 34, height: 310, code: "764", solved: false, hint: "Door-2 code: 7 6 _" },
+    { id: "d3", x: 7940, y: 150, width: 34, height: 290, code: "845", solved: false, hint: "Door-3 code: 8 _ 5" },
+  ];
+
+  game.clueMarkers = [
+    { x: 2360, y: 110, text: "Door-1 clue: middle digit is 1. You need to drop and return.", shown: false },
+    { x: 5640, y: 100, text: "Door-2 clue: last digit is 4. Backtrack to open it.", shown: false },
+    { x: 8120, y: 120, text: "Door-3 clue: middle digit is 4. Final return unlock.", shown: false },
+  ];
+}
+
+function renderLevelOptions() {
+  const maxUnlocked = Math.max(1, Math.min(game.totalLevels, game.save.unlockedLevel || 1));
+  game.levelSelect.innerHTML = "";
+
+  for (let level = 1; level <= game.totalLevels; level += 1) {
+    const option = document.createElement("option");
+    option.value = String(level);
+    option.textContent = level <= maxUnlocked ? `Level ${level}` : `Level ${level} (Locked)`;
+    option.disabled = level > maxUnlocked;
+    game.levelSelect.appendChild(option);
+  }
+
+  const selected = Math.max(1, Math.min(maxUnlocked, game.save.selectedLevel || 1));
+  game.save.selectedLevel = selected;
+  game.levelSelect.value = String(selected);
 }
 
 function setMessage(text, frames = 120) {
@@ -333,7 +487,10 @@ function resetPlayersInput() {
 
 function startGame() {
   const selectedParty = Math.max(1, Math.min(4, Number(game.partySizeSelect.value) || 1));
+  const selectedLevel = Math.max(1, Math.min(game.save.unlockedLevel || 1, Number(game.levelSelect.value) || 1));
   game.save.partySize = selectedParty;
+  game.save.selectedLevel = selectedLevel;
+  game.currentLevel = selectedLevel;
   game.players = Array.from({ length: selectedParty }, (_, index) => createPlayer(index));
   game.score = 0;
   game.distance = 0;
@@ -346,11 +503,11 @@ function startGame() {
   game.paused = false;
   game.interactPressed = false;
   game.discoveredKeyIds = new Set();
-  setupWorld();
+  setupWorld(selectedLevel);
   game.running = true;
   game.menu.classList.add("hidden");
   game.overlay.classList.add("hidden");
-  setMessage(`Case started. Team size: ${selectedParty}. Find clues and solve doors.`);
+  setMessage(`Level ${selectedLevel} started. Team size: ${selectedParty}.`);
   saveProgress();
 }
 
@@ -359,7 +516,14 @@ function finishRun() {
   game.menu.classList.remove("hidden");
   const bonus = 2 + Math.floor(game.discoveredKeyIds.size / 3) + game.doors.filter((door) => door.solved).length;
   game.save.keys += bonus;
-  game.missionNote.textContent = `Mission clear! Bonus keys earned: ${bonus}.`;
+  if (game.currentLevel < game.totalLevels && game.save.unlockedLevel < game.currentLevel + 1) {
+    game.save.unlockedLevel = game.currentLevel + 1;
+    game.save.selectedLevel = game.currentLevel + 1;
+    game.missionNote.textContent = `Level ${game.currentLevel} clear! Bonus keys: ${bonus}. Level ${game.currentLevel + 1} unlocked.`;
+  } else {
+    game.missionNote.textContent = `Level ${game.currentLevel} clear! Bonus keys earned: ${bonus}.`;
+  }
+  renderLevelOptions();
   saveProgress();
   renderSkinMenu();
 }
@@ -963,9 +1127,9 @@ function drawWorld(ctx) {
 
 function drawHud(ctx) {
   ctx.fillStyle = "rgba(6, 17, 31, 0.6)";
-  ctx.fillRect(12, 12, 330, 132);
+  ctx.fillRect(12, 12, 330, 160);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-  ctx.strokeRect(12, 12, 330, 132);
+  ctx.strokeRect(12, 12, 330, 160);
 
   const solvedDoors = game.doors.filter((door) => door.solved).length;
 
@@ -976,6 +1140,7 @@ function drawHud(ctx) {
   ctx.fillText(`Distance: ${Math.floor(game.distance)}m`, 24, 88);
   ctx.fillText(`Team: ${game.players.length}  Combo: x${game.combo}`, 24, 112);
   ctx.fillText(`Doors solved: ${solvedDoors}/${game.doors.length}`, 24, 136);
+  ctx.fillText(`Level: ${game.currentLevel}/${game.totalLevels}`, 24, 160);
 
   ctx.fillStyle = "#f8be3d";
   ctx.font = "700 16px Nunito";
@@ -1114,8 +1279,14 @@ function bindEvents() {
 
   game.startBtn.addEventListener("click", startGame);
   game.partySizeSelect.value = String(game.save.partySize || 1);
+  renderLevelOptions();
   game.partySizeSelect.addEventListener("change", () => {
     setPartySize(Number(game.partySizeSelect.value) || 1);
+  });
+  game.levelSelect.addEventListener("change", () => {
+    game.save.selectedLevel = Math.max(1, Math.min(game.save.unlockedLevel || 1, Number(game.levelSelect.value) || 1));
+    game.levelSelect.value = String(game.save.selectedLevel);
+    saveProgress();
   });
   game.addPlayerBtn.addEventListener("click", () => {
     setPartySize((Number(game.partySizeSelect.value) || 1) + 1);
