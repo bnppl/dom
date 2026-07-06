@@ -316,9 +316,9 @@ function setupWorld(levelNumber = 1) {
   ];
 
   const baseClues = [
-    { x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false },
-    { x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false },
-    { x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false },
+    { id: "c1", doorId: "d1", x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false },
+    { id: "c2", doorId: "d2", x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false },
+    { id: "c3", doorId: "d3", x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false },
   ];
 
   if (levelNumber === 1) {
@@ -382,9 +382,9 @@ function setupWorld(levelNumber = 1) {
     ];
 
     game.clueMarkers = [
-      { x: 1860, y: 130, text: "Door-1 clue: middle digit is 4. Climb, then return.", shown: false },
-      { x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false },
-      { x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false },
+      { id: "c1", doorId: "d1", x: 1860, y: 130, text: "Door-1 clue: middle digit is 4. Climb, then return.", shown: false },
+      { id: "c2", doorId: "d2", x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false },
+      { id: "c3", doorId: "d3", x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false },
     ];
     return;
   }
@@ -488,24 +488,36 @@ function setupWorld(levelNumber = 1) {
 
   game.clueMarkers = [
     {
+      id: "c1",
+      doorId: "d1",
       x: d1X - 180,
       y: 110,
       text: `Door-1 clue: middle digit is ${d1Code[1]}. Climb up then backtrack.`,
       shown: false,
     },
     {
+      id: "c2",
+      doorId: "d2",
       x: d2X + 260,
       y: 100,
       text: `Door-2 clue: last digit is ${d2Code[2]}. Return to unlock.`,
       shown: false,
     },
     {
+      id: "c3",
+      doorId: "d3",
       x: d3X + 170,
       y: 120,
       text: `Door-3 clue: middle digit is ${d3Code[1]}. Final backtrack lock.`,
       shown: false,
     },
   ];
+}
+
+function isCluePinned(clue) {
+  if (!clue?.shown) return false;
+  const door = game.doors.find((item) => item.id === clue.doorId);
+  return !door || !door.solved;
 }
 
 function renderLevelOptions() {
@@ -892,7 +904,7 @@ function updatePlayer(player) {
   for (const clue of game.clueMarkers) {
     if (!clue.shown && Math.abs(p.x - clue.x) < 80) {
       clue.shown = true;
-      setMessage(clue.text, 200);
+      setMessage(`Hint pinned: ${clue.text}`, 180);
     }
   }
 
@@ -1014,7 +1026,7 @@ function handleDoorInteraction() {
   }
 }
 
-function drawStickman(ctx, player, color1) {
+function drawStickman(ctx, player, color1, color2 = color1) {
   const isBlinking = player.invulnerableFrames > 0 && player.invulnerableFrames % 6 < 3;
   if (isBlinking) return;
 
@@ -1023,8 +1035,11 @@ function drawStickman(ctx, player, color1) {
   const f = player.facing;
 
   ctx.save();
-  ctx.strokeStyle = color1;
-  ctx.fillStyle = color1;
+  const bodyGradient = ctx.createLinearGradient(cx - 26, player.y, cx + 26, bot);
+  bodyGradient.addColorStop(0, color1);
+  bodyGradient.addColorStop(1, color2);
+  ctx.strokeStyle = bodyGradient;
+  ctx.fillStyle = bodyGradient;
   ctx.lineWidth = 3.5;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -1304,7 +1319,7 @@ function drawWorld(ctx) {
 
   const currentSkin = skins.find((skin) => skin.id === game.save.selectedSkin) || skins[0];
   for (const player of game.players) {
-    drawStickman(ctx, player, currentSkin.colors[0]);
+    drawStickman(ctx, player, currentSkin.colors[0], currentSkin.colors[1]);
     ctx.fillStyle = "#ecf5ff";
     ctx.font = "700 12px Nunito";
     ctx.fillText(player.label, player.x + 10, player.y - 8);
@@ -1341,6 +1356,27 @@ function drawHud(ctx) {
     ctx.strokeRect(360, 52, 560, 32);
     ctx.fillStyle = "#ffe8ad";
     ctx.fillText(game.message, 376, 74);
+  }
+
+  const pinnedClues = game.clueMarkers.filter((clue) => isCluePinned(clue));
+  if (!pinnedClues.length) return;
+
+  const boxWidth = 560;
+  const boxHeight = 28;
+  const startX = 360;
+  const startY = 12;
+
+  ctx.font = "700 14px Nunito";
+  for (let i = 0; i < pinnedClues.length; i += 1) {
+    const y = startY + i * (boxHeight + 6);
+    const clue = pinnedClues[i];
+
+    ctx.fillStyle = "rgba(20, 36, 55, 0.86)";
+    ctx.fillRect(startX, y, boxWidth, boxHeight);
+    ctx.strokeStyle = "rgba(74, 215, 209, 0.72)";
+    ctx.strokeRect(startX, y, boxWidth, boxHeight);
+    ctx.fillStyle = "#d9fff9";
+    ctx.fillText(clue.text, startX + 12, y + 19);
   }
 }
 
