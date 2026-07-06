@@ -1548,7 +1548,7 @@ function update() {
   }
 
   const allDoorsSolved = game.doors.every((door) => door.solved);
-  if (leader.x >= game.worldWidth - 80) {
+  if (anchorPlayer.x >= game.worldWidth - 80) {
     if (allDoorsSolved) {
       finishRun();
     } else {
