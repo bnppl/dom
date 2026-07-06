@@ -1,5 +1,6 @@
 const STORAGE_KEY = "shadowClubRunnerSave";
 const TOTAL_LEVELS = 35;
+const TOUCH_ACTIONS = ["left", "right", "jump", "roll", "interact", "pause"];
 
 const CONTROL_SCHEMES = [
   { label: "P1", left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown" },
@@ -156,6 +157,7 @@ const game = {
   message: "",
   messageTimer: 0,
   interactPressed: false,
+  touchButtons: [],
   players: [],
   ctx: null,
   gravity: 0.68,
@@ -174,6 +176,8 @@ const game = {
   totalLevels: TOTAL_LEVELS,
   rushTimer: 0,
 };
+
+const touchPointers = new Map();
 
 game.ctx = game.canvas.getContext("2d");
 
@@ -757,6 +761,87 @@ function resetPlayersInput() {
   }
 }
 
+function resetTouchInput() {
+  touchPointers.clear();
+}
+
+function getPrimaryPlayer() {
+  return game.players[0] || null;
+}
+
+function setTouchPlayerInput(action, pressed) {
+  const player = getPrimaryPlayer();
+  if (!player) return;
+
+  if (action === "left") player.input.left = pressed;
+  if (action === "right") player.input.right = pressed;
+  if (action === "jump") {
+    player.input.upHeld = pressed;
+    if (pressed) player.input.upPressed = true;
+  }
+  if (action === "roll") player.input.down = pressed;
+}
+
+function handleTouchAction(action, pressed) {
+  if (action === "pause") {
+    if (pressed && game.running) {
+      game.paused = !game.paused;
+      game.overlay.classList.toggle("hidden", !game.paused);
+      game.overlay.textContent = game.paused ? "Paused" : "";
+    }
+    return;
+  }
+
+  if (action === "interact") {
+    if (pressed) game.interactPressed = true;
+    return;
+  }
+
+  setTouchPlayerInput(action, pressed);
+}
+
+function updateTouchAction(action, pointerId, pressed) {
+  let pointers = touchPointers.get(action);
+  if (!pointers) {
+    pointers = new Set();
+    touchPointers.set(action, pointers);
+  }
+
+  if (pressed) {
+    const wasEmpty = pointers.size === 0;
+    pointers.add(pointerId);
+    if (wasEmpty) handleTouchAction(action, true);
+    return;
+  }
+
+  if (!pointers.has(pointerId)) return;
+  pointers.delete(pointerId);
+  if (pointers.size === 0) handleTouchAction(action, false);
+}
+
+function bindTouchControls() {
+  game.touchButtons = Array.from(document.querySelectorAll("[data-touch-action]"));
+
+  for (const button of game.touchButtons) {
+    const action = button.dataset.touchAction;
+    if (!TOUCH_ACTIONS.includes(action)) continue;
+
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      updateTouchAction(action, event.pointerId, true);
+    });
+
+    const release = (event) => {
+      updateTouchAction(action, event.pointerId, false);
+    };
+
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("lostpointercapture", release);
+  }
+}
+
 function startGame() {
   const selectedParty = Math.max(1, Math.min(4, Number(game.partySizeSelect.value) || 1));
   const selectedLevel = Math.max(1, Math.min(game.save.unlockedLevel || 1, Number(game.levelSelect.value) || 1));
@@ -779,6 +864,7 @@ function startGame() {
   game.respawnX = 100;
   game.paused = false;
   game.interactPressed = false;
+  resetTouchInput();
   game.discoveredKeyIds = new Set();
   setupWorld(selectedLevel);
   game.running = true;
@@ -1660,11 +1746,15 @@ function bindEvents() {
 
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
-  window.addEventListener("blur", resetPlayersInput);
+  window.addEventListener("blur", () => {
+    resetPlayersInput();
+    resetTouchInput();
+  });
 }
 
 function init() {
   bindEvents();
+  bindTouchControls();
   renderSkinMenu();
   renderUpgradeShop();
   render();

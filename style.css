@@ -259,6 +259,7 @@ canvas {
   height: auto;
   display: block;
   background: linear-gradient(180deg, #12253d 0%, #234469 100%);
+  touch-action: none;
 }
 
 .overlay {
@@ -283,6 +284,52 @@ canvas {
   color: #d2e3fc;
 }
 
+.touch-controls {
+  display: none;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(8, 19, 34, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.touch-row {
+  display: grid;
+  gap: 10px;
+}
+
+.touch-move {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.touch-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.touch-btn {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(29, 59, 93, 0.96), rgba(15, 34, 54, 0.98));
+  color: #eff7ff;
+  font: inherit;
+  font-weight: 900;
+  padding: 16px 10px;
+  min-height: 54px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-btn.primary {
+  border-color: rgba(248, 190, 61, 0.55);
+  background: linear-gradient(180deg, rgba(248, 190, 61, 0.95), rgba(244, 141, 41, 0.98));
+  color: #342000;
+}
+
+.touch-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 @media (max-width: 720px) {
   .menu-actions {
     flex-direction: column;
@@ -291,5 +338,15 @@ canvas {
 
   .controls-note {
     font-size: 0.85rem;
+  }
+
+  .touch-controls {
+    display: grid;
+  }
+}
+
+@media (pointer: coarse) {
+  .touch-controls {
+    display: grid;
   }
 }
