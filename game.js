@@ -1414,11 +1414,18 @@ function update() {
 
   handleDoorInteraction();
 
-  const leaderX = Math.max(...game.players.map((player) => player.x));
-  const targetCamera = Math.max(0, Math.min(game.worldWidth - game.canvas.width, leaderX - 260));
-  game.cameraX += (targetCamera - game.cameraX) * 0.14;
+  const leader = game.players.reduce((best, player) => {
+    if (!best) return player;
+    return player.x > best.x ? player : best;
+  }, null);
+  const leaderCenterX = leader.x + leader.width / 2;
+  const targetCamera = Math.max(
+    0,
+    Math.min(game.worldWidth - game.canvas.width, leaderCenterX - game.canvas.width / 2)
+  );
+  game.cameraX = targetCamera;
 
-  game.distance = Math.max(game.distance, Math.floor(leaderX));
+  game.distance = Math.max(game.distance, Math.floor(leader.x));
   game.elapsedFrames += 1;
 
   if (game.comboTimer > 0) game.comboTimer -= 1;
@@ -1436,7 +1443,7 @@ function update() {
   }
 
   const allDoorsSolved = game.doors.every((door) => door.solved);
-  if (leaderX >= game.worldWidth - 80) {
+  if (leader.x >= game.worldWidth - 80) {
     if (allDoorsSolved) {
       finishRun();
     } else {
