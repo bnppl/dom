@@ -199,6 +199,54 @@ body {
   color: #dbecff;
 }
 
+.how-to-play {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 36, 58, 0.72);
+}
+
+.how-to-play h3 {
+  margin: 0 0 6px;
+  color: #ffe8ad;
+  letter-spacing: 0.02em;
+}
+
+.how-to-play p {
+  margin: 0 0 10px;
+  color: #dbe9fb;
+  font-weight: 700;
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.how-card {
+  border-radius: 10px;
+  border: 1px solid rgba(74, 215, 209, 0.3);
+  background: rgba(10, 24, 40, 0.78);
+  padding: 10px;
+}
+
+.how-card h4 {
+  margin: 0 0 6px;
+  color: #8ee7e4;
+}
+
+.how-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #d4e6ff;
+}
+
+.how-card li + li {
+  margin-top: 4px;
+}
+
 .game-wrap {
   position: relative;
   border: 2px solid rgba(255, 255, 255, 0.2);
