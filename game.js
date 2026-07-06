@@ -1228,8 +1228,11 @@ function drawStickman(ctx, player, color1, color2 = color1) {
   const cx = Math.round(player.x + player.width / 2);
   const bot = Math.round(player.y + player.height);
   const f = player.facing;
+  const rollGlow = player.rolling ? 0.28 : 0;
 
   ctx.save();
+  ctx.shadowColor = `rgba(255, 255, 255, ${0.14 + rollGlow})`;
+  ctx.shadowBlur = 8 + rollGlow * 10;
   const bodyGradient = ctx.createLinearGradient(cx - 26, player.y, cx + 26, bot);
   bodyGradient.addColorStop(0, color1);
   bodyGradient.addColorStop(1, color2);
@@ -1409,52 +1412,155 @@ function drawStickman(ctx, player, color1, color2 = color1) {
   ctx.restore();
 }
 
+function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle = null, lineWidth = 1) {
+  const corner = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + corner, y);
+  ctx.lineTo(x + width - corner, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + corner);
+  ctx.lineTo(x + width, y + height - corner);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - corner, y + height);
+  ctx.lineTo(x + corner, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - corner);
+  ctx.lineTo(x, y + corner);
+  ctx.quadraticCurveTo(x, y, x + corner, y);
+  ctx.closePath();
+  if (fillStyle) {
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+  }
+  if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
 function drawBackground(ctx) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, game.canvas.height);
-  gradient.addColorStop(0, "#102036");
-  gradient.addColorStop(1, "#2a4a72");
-  ctx.fillStyle = gradient;
+  const sky = ctx.createLinearGradient(0, 0, 0, game.canvas.height);
+  sky.addColorStop(0, "#07111f");
+  sky.addColorStop(0.45, "#142848");
+  sky.addColorStop(1, "#2a4e76");
+  ctx.fillStyle = sky;
   ctx.fillRect(0, 0, game.canvas.width, game.canvas.height);
 
   ctx.save();
+  ctx.globalAlpha = 0.65;
+  const stars = [
+    [0.08, 0.12, 2], [0.17, 0.08, 1], [0.28, 0.2, 2], [0.39, 0.1, 1], [0.48, 0.16, 2],
+    [0.62, 0.07, 1], [0.71, 0.18, 2], [0.84, 0.09, 1], [0.93, 0.14, 2], [0.58, 0.25, 1],
+  ];
+  ctx.fillStyle = "#fff8d8";
+  for (const [sx, sy, size] of stars) {
+    const x = sx * game.canvas.width + Math.sin(game.elapsedFrames * 0.01 + sx * 10) * 4;
+    const y = sy * game.canvas.height;
+    ctx.fillRect(x, y, size, size);
+  }
+  ctx.restore();
+
+  const moonX = game.canvas.width * 0.84;
+  const moonY = game.canvas.height * 0.16;
+  const moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 90);
+  moonGlow.addColorStop(0, "rgba(255, 244, 208, 0.95)");
+  moonGlow.addColorStop(0.4, "rgba(255, 236, 178, 0.36)");
+  moonGlow.addColorStop(1, "rgba(255, 236, 178, 0)");
+  ctx.fillStyle = moonGlow;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, 90, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fef4cf";
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, 22, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(-game.cameraX * 0.08, 0);
+  ctx.fillStyle = "rgba(71, 108, 150, 0.34)";
+  for (let i = 0; i < 14; i += 1) {
+    const x = i * 190;
+    const y = 150 + (i % 3) * 12;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 58, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.save();
   ctx.translate(-game.cameraX * 0.25, 0);
-  ctx.fillStyle = "rgba(43, 91, 133, 0.5)";
+  ctx.fillStyle = "rgba(43, 91, 133, 0.42)";
   for (let i = 0; i < 22; i += 1) {
     const x = i * 340;
     const h = 90 + (i % 4) * 25;
     ctx.fillRect(x, game.groundY - h - 20, 220, h);
   }
   ctx.restore();
+
+  const mist = ctx.createLinearGradient(0, game.groundY - 140, 0, game.canvas.height);
+  mist.addColorStop(0, "rgba(125, 178, 226, 0)");
+  mist.addColorStop(0.5, "rgba(125, 178, 226, 0.12)");
+  mist.addColorStop(1, "rgba(11, 20, 35, 0.28)");
+  ctx.fillStyle = mist;
+  ctx.fillRect(0, game.groundY - 140, game.canvas.width, game.canvas.height - (game.groundY - 140));
 }
 
 function drawWorld(ctx) {
   ctx.save();
   ctx.translate(-game.cameraX, 0);
 
-  ctx.fillStyle = "#1e364f";
+  const ground = ctx.createLinearGradient(0, game.groundY, 0, game.canvas.height);
+  ground.addColorStop(0, "#1e364f");
+  ground.addColorStop(1, "#132335");
+  ctx.fillStyle = ground;
   ctx.fillRect(0, game.groundY, game.worldWidth, game.canvas.height - game.groundY);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+  for (let x = 0; x < game.worldWidth; x += 44) {
+    ctx.fillRect(x, game.groundY + ((x / 44) % 3 === 0 ? 2 : 12), 22, 2);
+  }
 
   ctx.fillStyle = "#3d6388";
   for (const platform of game.platforms) {
+    const platformShade = ctx.createLinearGradient(0, platform.y, 0, platform.y + platform.height);
+    platformShade.addColorStop(0, "#6c8fb0");
+    platformShade.addColorStop(0.4, "#456a8d");
+    platformShade.addColorStop(1, "#2c4d6b");
+    ctx.fillStyle = platformShade;
     ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.fillRect(platform.x, platform.y, platform.width, 4);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.fillRect(platform.x, platform.y + platform.height - 4, platform.width, 4);
   }
 
   for (const key of game.keysInLevel) {
     if (key.collected) continue;
+    const keyGlow = ctx.createRadialGradient(key.x, key.y, 2, key.x, key.y, 18);
+    keyGlow.addColorStop(0, "rgba(255, 245, 190, 0.95)");
+    keyGlow.addColorStop(1, "rgba(255, 189, 61, 0)");
+    ctx.fillStyle = keyGlow;
+    ctx.beginPath();
+    ctx.arc(key.x, key.y, 18, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = "#f8be3d";
     ctx.beginPath();
     ctx.arc(key.x, key.y, 10, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "rgba(255, 235, 150, 0.9)";
+    ctx.fillStyle = "rgba(255, 247, 205, 0.95)";
     ctx.fillRect(key.x - 3, key.y - 2, 12, 4);
   }
 
   for (const hazard of game.hazards) {
     if (hazard.type === "lowLaser") {
-      ctx.fillStyle = "#ff5370";
+      ctx.fillStyle = "rgba(255, 83, 112, 0.95)";
       ctx.fillRect(hazard.x, hazard.y, hazard.width, hazard.height);
-      ctx.fillStyle = "rgba(255, 83, 112, 0.3)";
-      ctx.fillRect(hazard.x, hazard.y - 8, hazard.width, 8);
+      const laserGlow = ctx.createLinearGradient(hazard.x, 0, hazard.x + hazard.width, 0);
+      laserGlow.addColorStop(0, "rgba(255, 83, 112, 0)");
+      laserGlow.addColorStop(0.5, "rgba(255, 145, 166, 0.9)");
+      laserGlow.addColorStop(1, "rgba(255, 83, 112, 0)");
+      ctx.fillStyle = laserGlow;
+      ctx.fillRect(hazard.x - 8, hazard.y - 7, hazard.width + 16, hazard.height + 14);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
+      ctx.fillRect(hazard.x, hazard.y + 2, hazard.width, 2);
     } else {
       ctx.fillStyle = "#9db2cc";
       ctx.beginPath();
@@ -1463,12 +1569,20 @@ function drawWorld(ctx) {
       ctx.lineTo(hazard.x + hazard.width, hazard.y + hazard.height);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.beginPath();
+      ctx.moveTo(hazard.x + 3, hazard.y + hazard.height - 2);
+      ctx.lineTo(hazard.x + hazard.width / 2, hazard.y + 4);
+      ctx.lineTo(hazard.x + hazard.width - 3, hazard.y + hazard.height - 2);
+      ctx.closePath();
+      ctx.fill();
     }
   }
 
   for (const checkpoint of game.checkpoints) {
-    ctx.strokeStyle = checkpoint.active ? "#4ad7d1" : "#7f94ab";
-    ctx.lineWidth = 3;
+    const poleColor = checkpoint.active ? "#4ad7d1" : "#7f94ab";
+    ctx.strokeStyle = poleColor;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(checkpoint.x, game.groundY - 82);
     ctx.lineTo(checkpoint.x, game.groundY);
@@ -1476,44 +1590,116 @@ function drawWorld(ctx) {
 
     ctx.fillStyle = checkpoint.active ? "#4ad7d1" : "#7f94ab";
     ctx.fillRect(checkpoint.x, game.groundY - 82, 28, 18);
+    ctx.fillStyle = checkpoint.active ? "rgba(74, 215, 209, 0.35)" : "rgba(127, 148, 171, 0.25)";
+    ctx.fillRect(checkpoint.x - 10, game.groundY - 92, 48, 36);
+    ctx.beginPath();
+    ctx.moveTo(checkpoint.x + 28, game.groundY - 73);
+    ctx.lineTo(checkpoint.x + 40 + Math.sin(game.elapsedFrames * 0.12) * 2, game.groundY - 66);
+    ctx.lineTo(checkpoint.x + 28, game.groundY - 59);
+    ctx.closePath();
+    ctx.fillStyle = checkpoint.active ? "#dffcf9" : "#d0d9e5";
+    ctx.fill();
   }
 
   for (const clue of game.clueMarkers) {
+    const clueGlow = ctx.createRadialGradient(clue.x + 9, clue.y + 7, 2, clue.x + 9, clue.y + 7, 22);
+    clueGlow.addColorStop(0, clue.shown ? "rgba(255, 235, 170, 0.95)" : "rgba(176, 195, 219, 0.8)");
+    clueGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = clueGlow;
+    ctx.fillRect(clue.x - 5, clue.y - 4, 28, 24);
     ctx.fillStyle = clue.shown ? "#ffd98c" : "#b0c3db";
     ctx.fillRect(clue.x, clue.y, 18, 14);
+    ctx.strokeStyle = "rgba(12, 20, 32, 0.45)";
+    ctx.strokeRect(clue.x, clue.y, 18, 14);
   }
 
   for (const door of game.doors) {
+    const solved = door.solved;
+    const frameColor = solved ? "#4ad7d1" : "#7f4a59";
+    const innerColor = solved ? "rgba(74, 215, 209, 0.35)" : "#5d3144";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillRect(door.x - 6, door.y + 10, door.width + 18, door.height + 6);
+    ctx.fillStyle = frameColor;
+    ctx.fillRect(door.x - 2, door.y - 2, door.width + 4, door.height + 4);
     if (door.solved) {
-      ctx.fillStyle = "rgba(74, 215, 209, 0.5)";
+      const solvedGlow = ctx.createLinearGradient(door.x, door.y, door.x + door.width, door.y + door.height);
+      solvedGlow.addColorStop(0, "rgba(112, 255, 235, 0.6)");
+      solvedGlow.addColorStop(1, "rgba(74, 215, 209, 0.45)");
+      ctx.fillStyle = solvedGlow;
       ctx.fillRect(door.x, door.y, door.width, door.height);
       continue;
     }
 
-    ctx.fillStyle = "#5d3144";
+    const doorFill = ctx.createLinearGradient(door.x, door.y, door.x + door.width, door.y + door.height);
+    doorFill.addColorStop(0, "#7a4056");
+    doorFill.addColorStop(0.5, innerColor);
+    doorFill.addColorStop(1, "#402231");
+    ctx.fillStyle = doorFill;
     ctx.fillRect(door.x, door.y, door.width, door.height);
     ctx.fillStyle = "#f8be3d";
     ctx.fillRect(door.x + 6, door.y + 44, door.width - 12, 14);
+    ctx.fillStyle = "rgba(255, 243, 194, 0.8)";
+    ctx.fillRect(door.x + 9, door.y + 48, door.width - 18, 4);
+    ctx.strokeStyle = "rgba(7, 10, 16, 0.35)";
+    ctx.strokeRect(door.x + 2, door.y + 2, door.width - 4, door.height - 4);
   }
 
   for (const enemy of game.enemies) {
     if (!enemy.active) continue;
 
     if (enemy.type === "drone") {
+      const droneGlow = ctx.createRadialGradient(
+        enemy.x + enemy.width / 2,
+        enemy.y + enemy.height / 2,
+        2,
+        enemy.x + enemy.width / 2,
+        enemy.y + enemy.height / 2,
+        30
+      );
+      droneGlow.addColorStop(0, "rgba(255, 134, 179, 0.92)");
+      droneGlow.addColorStop(1, "rgba(255, 134, 179, 0)");
+      ctx.fillStyle = droneGlow;
+      ctx.beginPath();
+      ctx.arc(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 30, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = "#f687b3";
-      ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+      ctx.beginPath();
+      ctx.ellipse(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 20, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = "#182330";
-      ctx.fillRect(enemy.x + 8, enemy.y + 10, enemy.width - 16, 6);
+      ctx.fillRect(enemy.x + 7, enemy.y + 10, enemy.width - 14, 6);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+      ctx.strokeRect(enemy.x + 3, enemy.y + 4, enemy.width - 6, enemy.height - 8);
     } else {
+      const sentryGlow = ctx.createRadialGradient(
+        enemy.x + enemy.width / 2,
+        enemy.y + enemy.height / 2,
+        4,
+        enemy.x + enemy.width / 2,
+        enemy.y + enemy.height / 2,
+        34
+      );
+      sentryGlow.addColorStop(0, "rgba(159, 122, 234, 0.9)");
+      sentryGlow.addColorStop(1, "rgba(159, 122, 234, 0)");
+      ctx.fillStyle = sentryGlow;
+      ctx.beginPath();
+      ctx.arc(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 34, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = "#9f7aea";
-      ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+      ctx.fillRect(enemy.x, enemy.y + 8, enemy.width, enemy.height - 8);
+      ctx.fillStyle = "#e2d7ff";
+      ctx.fillRect(enemy.x + 10, enemy.y + 14, enemy.width - 20, 8);
       ctx.fillStyle = "#1d2438";
-      ctx.fillRect(enemy.x + 10, enemy.y + 15, enemy.width - 20, 8);
+      ctx.fillRect(enemy.x + 10, enemy.y + 22, enemy.width - 20, 8);
     }
   }
 
   const currentSkin = skins.find((skin) => skin.id === game.save.selectedSkin) || skins[0];
   for (const player of game.players) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(player.x + player.width / 2, game.groundY - 4, 18, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
     drawStickman(ctx, player, currentSkin.colors[0], currentSkin.colors[1]);
     ctx.fillStyle = "#ecf5ff";
     ctx.font = "700 12px Nunito";
@@ -1524,10 +1710,19 @@ function drawWorld(ctx) {
 }
 
 function drawHud(ctx) {
-  ctx.fillStyle = "rgba(6, 17, 31, 0.6)";
-  ctx.fillRect(12, 12, 330, 160);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-  ctx.strokeRect(12, 12, 330, 160);
+  drawRoundedRect(
+    ctx,
+    12,
+    12,
+    330,
+    160,
+    16,
+    "rgba(6, 17, 31, 0.72)",
+    "rgba(255, 255, 255, 0.18)",
+    2
+  );
+  ctx.fillStyle = "rgba(248, 190, 61, 0.14)";
+  ctx.fillRect(12, 12, 330, 6);
 
   const solvedDoors = game.doors.filter((door) => door.solved).length;
 
@@ -1566,10 +1761,17 @@ function drawHud(ctx) {
     const y = startY + i * (boxHeight + 6);
     const clue = pinnedClues[i];
 
-    ctx.fillStyle = "rgba(20, 36, 55, 0.86)";
-    ctx.fillRect(startX, y, boxWidth, boxHeight);
-    ctx.strokeStyle = "rgba(74, 215, 209, 0.72)";
-    ctx.strokeRect(startX, y, boxWidth, boxHeight);
+    drawRoundedRect(
+      ctx,
+      startX,
+      y,
+      boxWidth,
+      boxHeight,
+      10,
+      "rgba(20, 36, 55, 0.86)",
+      "rgba(74, 215, 209, 0.72)",
+      1.5
+    );
     ctx.fillStyle = "#d9fff9";
     ctx.fillText(clue.text, startX + 12, y + 19);
   }
