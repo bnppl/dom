@@ -1516,6 +1516,10 @@ function update() {
     return;
   }
 
+  const anchorPlayer =
+    game.players.length === 1
+      ? game.players[0]
+      : game.players.reduce((best, player) => (player.x > best.x ? player : best), game.players[0]);
   const anchorCenterX =
     game.players.length === 1
       ? game.players[0].x + game.players[0].width / 2
