@@ -1,5 +1,5 @@
 const STORAGE_KEY = "shadowClubRunnerSave";
-const TOTAL_LEVELS = 20;
+const TOTAL_LEVELS = 35;
 
 const CONTROL_SCHEMES = [
   { label: "P1", left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown" },
@@ -422,6 +422,46 @@ function setupWorld(levelNumber = 1) {
     y: hazard.type === "lowLaser" ? Math.max(118, hazard.y - Math.floor(levelLift * 0.75)) : hazard.y,
   }));
 
+  const extraHazards = [];
+  if (difficulty >= 2) {
+    extraHazards.push(
+      {
+        type: "spike",
+        x: Math.floor(game.worldWidth * 0.26),
+        y: game.groundY - 20,
+        width: 40,
+        height: 20,
+      },
+      {
+        type: "lowLaser",
+        x: Math.floor(game.worldWidth * 0.52),
+        y: Math.max(120, game.groundY - 118),
+        width: 96,
+        height: 16,
+      }
+    );
+  }
+  if (difficulty >= 6) {
+    extraHazards.push(
+      {
+        type: "spike",
+        x: Math.floor(game.worldWidth * 0.74),
+        y: game.groundY - 20,
+        width: 40,
+        height: 20,
+      },
+      {
+        type: "lowLaser",
+        x: Math.floor(game.worldWidth * 0.84),
+        y: Math.max(112, game.groundY - 138),
+        width: 104,
+        height: 16,
+      }
+    );
+  }
+
+  game.hazards = game.hazards.concat(extraHazards);
+
   game.enemies = baseEnemies.map((enemy, i) => {
     const enemyShift = levelShiftX + i * 90;
     const velocityBoost = Math.min(1.4, difficulty * 0.08);
@@ -434,6 +474,52 @@ function setupWorld(levelNumber = 1) {
       active: true,
     };
   });
+
+  const extraEnemies = [];
+  if (difficulty >= 1) {
+    extraEnemies.push({
+      id: `e${game.enemies.length + 1}`,
+      type: "drone",
+      x: Math.floor(game.worldWidth * 0.42),
+      y: 210,
+      width: 40,
+      height: 34,
+      vx: 1.65 + difficulty * 0.06,
+      minX: Math.floor(game.worldWidth * 0.39),
+      maxX: Math.floor(game.worldWidth * 0.48),
+      active: true,
+    });
+  }
+  if (difficulty >= 4) {
+    extraEnemies.push({
+      id: `e${game.enemies.length + extraEnemies.length + 1}`,
+      type: "sentry",
+      x: Math.floor(game.worldWidth * 0.66),
+      y: 320,
+      width: 44,
+      height: 50,
+      vx: 1.75 + difficulty * 0.07,
+      minX: Math.floor(game.worldWidth * 0.62),
+      maxX: Math.floor(game.worldWidth * 0.71),
+      active: true,
+    });
+  }
+  if (difficulty >= 8) {
+    extraEnemies.push({
+      id: `e${game.enemies.length + extraEnemies.length + 1}`,
+      type: "drone",
+      x: Math.floor(game.worldWidth * 0.8),
+      y: 240,
+      width: 40,
+      height: 34,
+      vx: 2 + difficulty * 0.08,
+      minX: Math.floor(game.worldWidth * 0.77),
+      maxX: Math.floor(game.worldWidth * 0.87),
+      active: true,
+    });
+  }
+
+  game.enemies = game.enemies.concat(extraEnemies);
 
   const cp1 = Math.floor(game.worldWidth * 0.2);
   const cp2 = Math.floor(game.worldWidth * 0.45);
@@ -1425,18 +1511,26 @@ function update() {
 
   if (game.rushTimer > 0) game.rushTimer -= 1;
 
-  const leader = game.players.reduce((best, player) => {
-    if (!best) return player;
-    return player.x > best.x ? player : best;
-  }, null);
-  const leaderCenterX = leader.x + leader.width / 2;
+  if (!game.players.length) {
+    requestAnimationFrame(update);
+    return;
+  }
+
+  const anchorCenterX =
+    game.players.length === 1
+      ? game.players[0].x + game.players[0].width / 2
+      : game.players.reduce((sum, player) => sum + player.x + player.width / 2, 0) /
+        game.players.length;
   const targetCamera = Math.max(
     0,
-    Math.min(game.worldWidth - game.canvas.width, leaderCenterX - game.canvas.width / 2)
+    Math.min(game.worldWidth - game.canvas.width, anchorCenterX - game.canvas.width / 2)
   );
   game.cameraX = targetCamera;
 
-  game.distance = Math.max(game.distance, Math.floor(leader.x));
+  game.distance = Math.max(
+    game.distance,
+    Math.floor(Math.max(...game.players.map((player) => player.x)))
+  );
   game.elapsedFrames += 1;
 
   if (game.comboTimer > 0) game.comboTimer -= 1;
