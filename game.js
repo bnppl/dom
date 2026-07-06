@@ -172,6 +172,7 @@ const game = {
   discoveredKeyIds: new Set(),
   currentLevel: 1,
   totalLevels: TOTAL_LEVELS,
+  rushTimer: 0,
 };
 
 game.ctx = game.canvas.getContext("2d");
@@ -187,11 +188,11 @@ function createPlayer(index) {
     height: 74,
     vx: 0,
     vy: 0,
-    maxRunSpeed: 8.4,
+    maxRunSpeed: 8.1,
     accelGround: 1.1,
     accelAir: 0.62,
     friction: 0.78,
-    jumpPower: 15,
+    jumpPower: 14.6,
     jumpCutFactor: 0.5,
     coyoteFrames: 8,
     jumpBufferFrames: 10,
@@ -295,11 +296,11 @@ function setupWorld(levelNumber = 1) {
   ];
 
   const baseEnemies = [
-    { id: "e1", type: "sentry", x: 880, y: 390, width: 44, height: 50, vx: 1.3, minX: 820, maxX: 1100, active: true },
-    { id: "e2", type: "drone", x: 2100, y: 230, width: 40, height: 34, vx: 1.5, minX: 2000, maxX: 2320, active: true },
-    { id: "e3", type: "sentry", x: 3560, y: 280, width: 44, height: 50, vx: 1.6, minX: 3500, maxX: 3880, active: true },
-    { id: "e4", type: "drone", x: 4700, y: 250, width: 40, height: 34, vx: 1.8, minX: 4540, maxX: 5000, active: true },
-    { id: "e5", type: "sentry", x: 6150, y: 320, width: 44, height: 50, vx: 1.9, minX: 6040, maxX: 6400, active: true },
+    { id: "e1", type: "sentry", x: 880, y: 390, width: 44, height: 50, vx: 1.45, minX: 820, maxX: 1100, active: true },
+    { id: "e2", type: "drone", x: 2100, y: 230, width: 40, height: 34, vx: 1.68, minX: 2000, maxX: 2320, active: true },
+    { id: "e3", type: "sentry", x: 3560, y: 280, width: 44, height: 50, vx: 1.78, minX: 3500, maxX: 3880, active: true },
+    { id: "e4", type: "drone", x: 4700, y: 250, width: 40, height: 34, vx: 1.98, minX: 4540, maxX: 5000, active: true },
+    { id: "e5", type: "sentry", x: 6150, y: 320, width: 44, height: 50, vx: 2.08, minX: 6040, maxX: 6400, active: true },
   ];
 
   const baseCheckpoints = [
@@ -423,7 +424,7 @@ function setupWorld(levelNumber = 1) {
 
   game.enemies = baseEnemies.map((enemy, i) => {
     const enemyShift = levelShiftX + i * 90;
-    const velocityBoost = Math.min(1.1, difficulty * 0.05);
+    const velocityBoost = Math.min(1.4, difficulty * 0.08);
     return {
       ...enemy,
       x: enemy.x + enemyShift,
@@ -687,6 +688,7 @@ function startGame() {
   game.elapsedFrames = 0;
   game.combo = 0;
   game.comboTimer = 0;
+  game.rushTimer = 0;
   game.autosaveTick = 0;
   game.respawnX = 100;
   game.paused = false;
@@ -798,6 +800,7 @@ function updatePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
+  const rushActive = game.rushTimer > 0;
 
   if (p.invulnerableFrames > 0) p.invulnerableFrames -= 1;
   if (p.rollCooldown > 0) p.rollCooldown -= 1;
@@ -817,7 +820,8 @@ function updatePlayer(player) {
 
   const movingLeft = p.input.left && !p.input.right;
   const movingRight = p.input.right && !p.input.left;
-  const accel = p.onGround ? p.accelGround : p.accelAir;
+  const accel = (p.onGround ? p.accelGround : p.accelAir) * (rushActive ? 1.12 : 1);
+  const maxSpeed = p.maxRunSpeed * (rushActive ? 1.07 : 1);
 
   if (movingLeft) {
     p.vx -= accel;
@@ -837,21 +841,21 @@ function updatePlayer(player) {
 
   if (p.rolling) p.vx *= 1.04;
 
-  if (p.vx > p.maxRunSpeed) p.vx = p.maxRunSpeed;
-  if (p.vx < -p.maxRunSpeed) p.vx = -p.maxRunSpeed;
+  if (p.vx > maxSpeed) p.vx = maxSpeed;
+  if (p.vx < -maxSpeed) p.vx = -maxSpeed;
 
   if (p.onGround) p.coyoteLeft = p.coyoteFrames;
   else if (p.coyoteLeft > 0) p.coyoteLeft -= 1;
 
   if (p.jumpBufferLeft > 0 && p.onWall && !p.onGround) {
-    p.vy = -p.jumpPower;
+    p.vy = -(p.jumpPower * (rushActive ? 1.05 : 1));
     p.vx = -p.wallDir * p.maxRunSpeed;
     p.facing = -p.wallDir;
     p.onWall = false;
     p.coyoteLeft = 0;
     p.jumpBufferLeft = 0;
   } else if (p.jumpBufferLeft > 0 && p.coyoteLeft > 0) {
-    p.vy = -p.jumpPower;
+    p.vy = -(p.jumpPower * (rushActive ? 1.05 : 1));
     p.onGround = false;
     p.coyoteLeft = 0;
     p.jumpBufferLeft = 0;
@@ -929,6 +933,11 @@ function updatePlayer(player) {
       if (game.combo % 5 === 0) {
         game.save.keys += 1;
         setMessage("Combo bonus: +1 key!");
+      }
+
+      game.rushTimer = Math.max(game.rushTimer, game.combo >= 3 ? 120 : 75);
+      if (game.combo >= 3 && game.combo % 3 === 0) {
+        setMessage("Momentum Rush! Keep moving.");
       }
 
       if (!game.discoveredKeyIds.has(key.id)) {
@@ -1413,6 +1422,8 @@ function update() {
   }
 
   handleDoorInteraction();
+
+  if (game.rushTimer > 0) game.rushTimer -= 1;
 
   const leader = game.players.reduce((best, player) => {
     if (!best) return player;
