@@ -316,9 +316,9 @@ function setupWorld(levelNumber = 1) {
   ];
 
   const baseClues = [
-    { id: "c1", doorId: "d1", x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false },
-    { id: "c2", doorId: "d2", x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false },
-    { id: "c3", doorId: "d3", x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false },
+    { id: "c1", doorId: "d1", x: 1510, y: 140, text: "Door-1 clue: middle digit is 3. Drop down and backtrack.", shown: false, cooldownFrames: 0 },
+    { id: "c2", doorId: "d2", x: 4470, y: 140, text: "Door-2 clue: last digit is 2. Head back to the lock.", shown: false, cooldownFrames: 0 },
+    { id: "c3", doorId: "d3", x: 5880, y: 160, text: "Door-3 clue: middle digit is 9. Return to unlock.", shown: false, cooldownFrames: 0 },
   ];
 
   if (levelNumber === 1) {
@@ -382,9 +382,9 @@ function setupWorld(levelNumber = 1) {
     ];
 
     game.clueMarkers = [
-      { id: "c1", doorId: "d1", x: 1860, y: 130, text: "Door-1 clue: middle digit is 4. Climb, then return.", shown: false },
-      { id: "c2", doorId: "d2", x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false },
-      { id: "c3", doorId: "d3", x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false },
+      { id: "c1", doorId: "d1", x: 1860, y: 130, text: "Door-1 clue: middle digit is 4. Climb, then return.", shown: false, cooldownFrames: 0 },
+      { id: "c2", doorId: "d2", x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false, cooldownFrames: 0 },
+      { id: "c3", doorId: "d3", x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false, cooldownFrames: 0 },
     ];
     return;
   }
@@ -494,6 +494,7 @@ function setupWorld(levelNumber = 1) {
       y: 110,
       text: `Door-1 clue: middle digit is ${d1Code[1]}. Climb up then backtrack.`,
       shown: false,
+      cooldownFrames: 0,
     },
     {
       id: "c2",
@@ -502,6 +503,7 @@ function setupWorld(levelNumber = 1) {
       y: 100,
       text: `Door-2 clue: last digit is ${d2Code[2]}. Return to unlock.`,
       shown: false,
+      cooldownFrames: 0,
     },
     {
       id: "c3",
@@ -510,6 +512,7 @@ function setupWorld(levelNumber = 1) {
       y: 120,
       text: `Door-3 clue: middle digit is ${d3Code[1]}. Final backtrack lock.`,
       shown: false,
+      cooldownFrames: 0,
     },
   ];
 }
@@ -902,10 +905,14 @@ function updatePlayer(player) {
   }
 
   for (const clue of game.clueMarkers) {
-    if (!clue.shown && Math.abs(p.x - clue.x) < 80) {
-      clue.shown = true;
-      setMessage(`Hint pinned: ${clue.text}`, 180);
-    }
+    const nearClue = Math.abs(p.x - clue.x) < 80;
+    const cooldownFrames = clue.cooldownFrames || 0;
+    if (!nearClue || cooldownFrames > 0) continue;
+
+    const isFirstDiscovery = !clue.shown;
+    clue.shown = true;
+    clue.cooldownFrames = 80;
+    setMessage(isFirstDiscovery ? `Hint pinned: ${clue.text}` : `Clue reminder: ${clue.text}`, 180);
   }
 
   for (const key of game.keysInLevel) {
@@ -991,11 +998,18 @@ function handleDoorInteraction() {
     if (door.solved) continue;
 
     for (const player of game.players) {
-      const nearX = Math.abs(player.x - door.x) < 72;
-      const nearY = Math.abs(player.y - door.y) < 190;
-      if (!nearX || !nearY) continue;
+      const playerBox = playerHitbox(player);
+      const doorZone = {
+        x: door.x - 56,
+        y: door.y,
+        width: door.width + 112,
+        height: door.height,
+      };
+      if (!rectsOverlap(playerBox, doorZone)) continue;
 
-      const dist = Math.abs(player.x - door.x);
+      const playerCenterX = player.x + player.width / 2;
+      const doorCenterX = door.x + door.width / 2;
+      const dist = Math.abs(playerCenterX - doorCenterX);
       if (!candidate || dist < candidate.distance) {
         candidate = { door, player, distance: dist };
       }
@@ -1003,7 +1017,7 @@ function handleDoorInteraction() {
   }
 
   if (!candidate) {
-    setMessage("No locked door nearby. Move closer and press E.");
+    setMessage("No locked door nearby. Stand by a door and press E.");
     return;
   }
 
@@ -1384,6 +1398,12 @@ function update() {
   if (!game.running || game.paused) {
     requestAnimationFrame(update);
     return;
+  }
+
+  for (const clue of game.clueMarkers) {
+    if ((clue.cooldownFrames || 0) > 0) {
+      clue.cooldownFrames -= 1;
+    }
   }
 
   updateEnemies();
