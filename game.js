@@ -170,6 +170,7 @@ const game = {
   checkpoints: [],
   doors: [],
   clueMarkers: [],
+  bikePortals: [],
   respawnX: 100,
   discoveredKeyIds: new Set(),
   currentLevel: 1,
@@ -192,14 +193,14 @@ function createPlayer(index) {
     height: 74,
     vx: 0,
     vy: 0,
-    maxRunSpeed: 8.1,
-    accelGround: 1.1,
-    accelAir: 0.62,
-    friction: 0.78,
-    jumpPower: 14.6,
-    jumpCutFactor: 0.5,
-    coyoteFrames: 8,
-    jumpBufferFrames: 10,
+    maxRunSpeed: 9.4,
+    accelGround: 1.35,
+    accelAir: 0.82,
+    friction: 0.84,
+    jumpPower: 16.2,
+    jumpCutFactor: 0.58,
+    coyoteFrames: 10,
+    jumpBufferFrames: 12,
     onGround: false,
     onWall: false,
     wallDir: 0,
@@ -210,6 +211,12 @@ function createPlayer(index) {
     rollTimer: 0,
     rollCooldown: 0,
     maxFallSpeed: 18,
+    wallClingFrames: 0,
+    onBike: false,
+    bikeAngle: 0,
+    bikeAngularVelocity: 0,
+    bikeAirborne: false,
+    bikeSpin: 0,
     invulnerableFrames: 0,
     stepFrame: 0,
     input: {
@@ -227,11 +234,26 @@ function applyPlayerUpgrades(player) {
   const jumpLevel = game.save.upgrades.jump || 0;
   const dashLevel = game.save.upgrades.dash || 0;
 
-  player.maxRunSpeed += speedLevel * 0.45;
-  player.accelGround += speedLevel * 0.05;
-  player.accelAir += speedLevel * 0.025;
-  player.jumpPower += jumpLevel * 0.75;
-  player.rollBoost = 2.3 + dashLevel * 0.4;
+  player.maxRunSpeed += speedLevel * 0.5;
+  player.accelGround += speedLevel * 0.08;
+  player.accelAir += speedLevel * 0.04;
+  player.jumpPower += jumpLevel * 0.9;
+  player.rollBoost = 3 + dashLevel * 0.55;
+}
+
+function setupBikePortals(levelNumber) {
+  const baseX = Math.floor(1500 + levelNumber * 180);
+  const portalX = Math.max(900, Math.min(game.worldWidth - 260, baseX));
+  game.bikePortals = [
+    {
+      id: `bike-${levelNumber}`,
+      x: portalX,
+      y: game.groundY - 128,
+      width: 48,
+      height: 120,
+      used: false,
+    },
+  ];
 }
 
 function setupWorld(levelNumber = 1) {
@@ -335,6 +357,7 @@ function setupWorld(levelNumber = 1) {
     game.checkpoints = baseCheckpoints;
     game.doors = baseDoors;
     game.clueMarkers = baseClues;
+    setupBikePortals(levelNumber);
     return;
   }
 
@@ -391,6 +414,7 @@ function setupWorld(levelNumber = 1) {
       { id: "c2", doorId: "d2", x: 5080, y: 120, text: "Door-2 clue: last digit is 8. Backtrack to the lock.", shown: false, cooldownFrames: 0 },
       { id: "c3", doorId: "d3", x: 7420, y: 150, text: "Door-3 clue: middle digit is 0. Drop down and unlock.", shown: false, cooldownFrames: 0 },
     ];
+    setupBikePortals(levelNumber);
     return;
   }
 
@@ -606,6 +630,8 @@ function setupWorld(levelNumber = 1) {
       cooldownFrames: 0,
     },
   ];
+
+  setupBikePortals(levelNumber);
 }
 
 function isCluePinned(clue) {
@@ -902,6 +928,15 @@ function rectsOverlap(a, b) {
 }
 
 function playerHitbox(player) {
+  if (player.onBike) {
+    return {
+      x: player.x - 8,
+      y: player.y + 24,
+      width: player.width + 20,
+      height: 44,
+    };
+  }
+
   const bodyHeight = player.rolling ? player.height * 0.56 : player.height;
   const yOffset = player.height - bodyHeight;
   return {
@@ -920,6 +955,12 @@ function triggerRespawn(player, reason) {
   player.rollTimer = 0;
   player.onWall = false;
   player.wallDir = 0;
+  player.wallClingFrames = 0;
+  player.onBike = game.bikePortals.some((portal) => portal.used);
+  player.bikeAngle = 0;
+  player.bikeAngularVelocity = 0;
+  player.bikeAirborne = false;
+  player.bikeSpin = 0;
   player.input.upPressed = false;
   player.invulnerableFrames = 75;
   game.combo = 0;
@@ -968,11 +1009,163 @@ function applyDoorBlock(player, prevX) {
   }
 }
 
+function activateBikeMode(player) {
+  player.onBike = true;
+  player.rolling = false;
+  player.rollTimer = 0;
+  player.bikeAngle = 0;
+  player.bikeAngularVelocity = 0;
+  player.bikeAirborne = false;
+  player.bikeSpin = 0;
+  player.vx = Math.max(player.vx, 6.2);
+  player.vy = 0;
+  setMessage(`${player.label} entered Bike Zone! Moto controls active.`, 160);
+}
+
+function updateBikePlayer(player) {
+  const p = player;
+  const prevX = p.x;
+  const prevY = p.y;
+  const bikeAccel = p.input.upHeld ? 0.44 : 0.08;
+  const bikeMaxSpeed = p.maxRunSpeed + 5.2;
+
+  if (p.input.upHeld) p.vx += bikeAccel;
+  if (p.input.down) {
+    p.vx *= 0.92;
+    if (p.vx > 0.4) p.vx -= 0.22;
+  }
+
+  if (!p.input.upHeld && !p.input.down) {
+    p.vx *= 0.992;
+  }
+
+  if (p.vx > bikeMaxSpeed) p.vx = bikeMaxSpeed;
+  if (p.vx < -4.5) p.vx = -4.5;
+
+  const tiltInput = (p.input.right ? 1 : 0) - (p.input.left ? 1 : 0);
+  p.bikeAngularVelocity += tiltInput * (p.onGround ? 0.006 : 0.014);
+  p.bikeAngularVelocity *= p.onGround ? 0.9 : 0.985;
+  p.bikeAngle += p.bikeAngularVelocity;
+
+  if (p.onGround) {
+    p.bikeAngle *= 0.86;
+  }
+
+  if (p.bikeAngle > 1.65) p.bikeAngle = 1.65;
+  if (p.bikeAngle < -1.65) p.bikeAngle = -1.65;
+
+  p.vy += game.gravity * 0.9;
+  if (p.vy > p.maxFallSpeed + 3) p.vy = p.maxFallSpeed + 3;
+
+  p.x += p.vx;
+  p.y += p.vy;
+  p.onGround = false;
+  p.onWall = false;
+
+  if (p.y + p.height >= game.groundY) {
+    p.y = game.groundY - p.height;
+    if (p.vy > 2.5 && Math.abs(p.bikeSpin) > Math.PI * 1.7) {
+      game.save.keys += 2;
+      setMessage(`${p.label} landed a stunt! +2 keys`, 130);
+      saveProgress();
+    }
+    p.vy = 0;
+    p.onGround = true;
+    p.bikeAirborne = false;
+    p.bikeSpin = 0;
+  }
+
+  for (const platform of game.platforms) {
+    const hitbox = playerHitbox(p);
+    if (!rectsOverlap(hitbox, platform)) continue;
+
+    const comingFromTop = p.vy >= 0 && p.y + p.height - p.vy <= platform.y + 10;
+    if (comingFromTop) {
+      if (!p.onGround && p.vy > 1.8 && Math.abs(p.bikeSpin) > Math.PI * 1.7) {
+        game.save.keys += 2;
+        setMessage(`${p.label} rooftop stunt! +2 keys`, 130);
+        saveProgress();
+      }
+      p.y = platform.y - p.height;
+      p.vy = 0;
+      p.onGround = true;
+      p.bikeAirborne = false;
+      p.bikeSpin = 0;
+    } else if (prevX + p.width <= platform.x && p.x + p.width > platform.x) {
+      p.x = platform.x - p.width;
+      p.vx *= 0.4;
+    } else if (prevX >= platform.x + platform.width && p.x < platform.x + platform.width) {
+      p.x = platform.x + platform.width;
+      p.vx *= 0.4;
+    }
+  }
+
+  if (!p.onGround) {
+    p.bikeAirborne = true;
+    p.bikeSpin += p.bikeAngularVelocity;
+  }
+
+  for (const checkpoint of game.checkpoints) {
+    if (!checkpoint.active && p.x >= checkpoint.x) {
+      checkpoint.active = true;
+      game.respawnX = checkpoint.x + 30;
+      setMessage(`Checkpoint reached: ${checkpoint.x}m`);
+    }
+  }
+
+  const hitbox = playerHitbox(p);
+  for (const portal of game.bikePortals) {
+    if (portal.used) continue;
+    if (!rectsOverlap(hitbox, portal)) continue;
+    portal.used = true;
+  }
+
+  for (const key of game.keysInLevel) {
+    if (key.collected) continue;
+    const keyHitbox = { x: key.x - 10, y: key.y - 10, width: 20, height: 20 };
+    if (!rectsOverlap(hitbox, keyHitbox)) continue;
+    key.collected = true;
+    if (!game.discoveredKeyIds.has(key.id)) {
+      game.discoveredKeyIds.add(key.id);
+      game.save.keys += 1;
+      game.score += 10;
+    }
+  }
+
+  for (const hazard of game.hazards) {
+    if (!rectsOverlap(hitbox, hazard)) continue;
+    if (p.invulnerableFrames <= 0) {
+      triggerRespawn(p, "trap");
+    }
+    break;
+  }
+
+  for (const enemy of game.enemies) {
+    if (!enemy.active) continue;
+    const enemyBox = { x: enemy.x, y: enemy.y, width: enemy.width, height: enemy.height };
+    if (!rectsOverlap(hitbox, enemyBox)) continue;
+    if (p.invulnerableFrames <= 0) triggerRespawn(p, "trap");
+    break;
+  }
+
+  applyDoorBlock(p, prevX);
+  p.x = Math.max(0, Math.min(game.worldWidth - p.width, p.x));
+
+  if (p.y > game.canvas.height + 240) {
+    triggerRespawn(p, "fall");
+  }
+}
+
 function updatePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
   const rushActive = game.rushTimer > 0;
+
+  if (p.onBike) {
+    updateBikePlayer(p);
+    return;
+  }
 
   if (p.invulnerableFrames > 0) p.invulnerableFrames -= 1;
   if (p.rollCooldown > 0) p.rollCooldown -= 1;
@@ -1011,6 +1204,16 @@ function updatePlayer(player) {
     p.vx += (p.rollBoost || 2.3) * p.facing;
   }
 
+  if (!p.onGround && p.onWall) {
+    p.wallClingFrames = Math.min(18, p.wallClingFrames + 1);
+    p.vy = Math.min(p.vy, 1.6);
+    if ((movingLeft && p.wallDir === -1) || (movingRight && p.wallDir === 1)) {
+      p.vy = Math.min(p.vy, 0.8);
+    }
+  } else if (p.wallClingFrames > 0) {
+    p.wallClingFrames -= 1;
+  }
+
   if (p.rolling) p.vx *= 1.04;
 
   if (p.vx > maxSpeed) p.vx = maxSpeed;
@@ -1020,14 +1223,15 @@ function updatePlayer(player) {
   else if (p.coyoteLeft > 0) p.coyoteLeft -= 1;
 
   if (p.jumpBufferLeft > 0 && p.onWall && !p.onGround) {
-    p.vy = -(p.jumpPower * (rushActive ? 1.05 : 1));
-    p.vx = -p.wallDir * p.maxRunSpeed;
+    p.vy = -(p.jumpPower * 1.02 * (rushActive ? 1.05 : 1));
+    p.vx = -p.wallDir * (p.maxRunSpeed * 1.05);
     p.facing = -p.wallDir;
     p.onWall = false;
+    p.wallClingFrames = 0;
     p.coyoteLeft = 0;
     p.jumpBufferLeft = 0;
   } else if (p.jumpBufferLeft > 0 && p.coyoteLeft > 0) {
-    p.vy = -(p.jumpPower * (rushActive ? 1.05 : 1));
+    p.vy = -(p.jumpPower * 1.02 * (rushActive ? 1.05 : 1));
     p.onGround = false;
     p.coyoteLeft = 0;
     p.jumpBufferLeft = 0;
@@ -1035,7 +1239,7 @@ function updatePlayer(player) {
 
   if (!p.input.upHeld && p.vy < -2.5) p.vy *= p.jumpCutFactor;
 
-  p.vy += game.gravity;
+  p.vy += game.gravity * (p.wallClingFrames > 0 ? 0.84 : 1);
   if (p.vy > p.maxFallSpeed) p.vy = p.maxFallSpeed;
 
   p.x += p.vx;
@@ -1072,12 +1276,23 @@ function updatePlayer(player) {
 
   if (p.onWall && !p.onGround && p.vy > 3) p.vy = 3;
 
+  if (p.onGround) p.wallClingFrames = 0;
+
   for (const checkpoint of game.checkpoints) {
     if (!checkpoint.active && p.x >= checkpoint.x) {
       checkpoint.active = true;
       game.respawnX = checkpoint.x + 30;
       setMessage(`Checkpoint reached: ${checkpoint.x}m`);
     }
+  }
+
+  const pHitbox = playerHitbox(p);
+  for (const portal of game.bikePortals) {
+    if (portal.used) continue;
+    if (!rectsOverlap(pHitbox, portal)) continue;
+    portal.used = true;
+    activateBikeMode(p);
+    break;
   }
 
   for (const clue of game.clueMarkers) {
@@ -1131,7 +1346,6 @@ function updatePlayer(player) {
     }
   }
 
-  const pHitbox = playerHitbox(p);
   for (const hazard of game.hazards) {
     if (!rectsOverlap(pHitbox, hazard)) continue;
     if (hazard.type === "lowLaser" && p.rolling) continue;
@@ -1412,6 +1626,63 @@ function drawStickman(ctx, player, color1, color2 = color1) {
   ctx.restore();
 }
 
+function drawBikeRider(ctx, player, color1, color2 = color1) {
+  const cx = player.x + player.width / 2;
+  const wheelY = player.y + player.height - 8;
+  const wheelGap = 26;
+
+  ctx.save();
+  ctx.translate(cx, wheelY - 6);
+  ctx.rotate(player.bikeAngle);
+
+  const frameGradient = ctx.createLinearGradient(-28, -10, 28, 10);
+  frameGradient.addColorStop(0, color1);
+  frameGradient.addColorStop(1, color2);
+  ctx.strokeStyle = frameGradient;
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+  ctx.moveTo(-wheelGap, 6);
+  ctx.lineTo(-3, -8);
+  ctx.lineTo(wheelGap, 6);
+  ctx.lineTo(10, 6);
+  ctx.lineTo(-3, -8);
+  ctx.stroke();
+
+  ctx.fillStyle = "#111a27";
+  ctx.beginPath();
+  ctx.arc(-wheelGap, 6, 11, 0, Math.PI * 2);
+  ctx.arc(wheelGap, 6, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#dce8ff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-wheelGap, 6, 6, 0, Math.PI * 2);
+  ctx.arc(wheelGap, 6, 6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = color1;
+  ctx.beginPath();
+  ctx.arc(0, -24, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = frameGradient;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, -16);
+  ctx.lineTo(-2, -7);
+  ctx.lineTo(-8, 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-2, -7);
+  ctx.lineTo(12, -2);
+  ctx.lineTo(wheelGap - 1, 6);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle = null, lineWidth = 1) {
   const corner = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
@@ -1438,31 +1709,17 @@ function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyl
 
 function drawBackground(ctx) {
   const sky = ctx.createLinearGradient(0, 0, 0, game.canvas.height);
-  sky.addColorStop(0, "#07111f");
-  sky.addColorStop(0.45, "#142848");
-  sky.addColorStop(1, "#2a4e76");
+  sky.addColorStop(0, "#041018");
+  sky.addColorStop(0.42, "#0e2440");
+  sky.addColorStop(1, "#234365");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, game.canvas.width, game.canvas.height);
 
-  ctx.save();
-  ctx.globalAlpha = 0.65;
-  const stars = [
-    [0.08, 0.12, 2], [0.17, 0.08, 1], [0.28, 0.2, 2], [0.39, 0.1, 1], [0.48, 0.16, 2],
-    [0.62, 0.07, 1], [0.71, 0.18, 2], [0.84, 0.09, 1], [0.93, 0.14, 2], [0.58, 0.25, 1],
-  ];
-  ctx.fillStyle = "#fff8d8";
-  for (const [sx, sy, size] of stars) {
-    const x = sx * game.canvas.width + Math.sin(game.elapsedFrames * 0.01 + sx * 10) * 4;
-    const y = sy * game.canvas.height;
-    ctx.fillRect(x, y, size, size);
-  }
-  ctx.restore();
-
-  const moonX = game.canvas.width * 0.84;
-  const moonY = game.canvas.height * 0.16;
+  const moonX = game.canvas.width * 0.82;
+  const moonY = game.canvas.height * 0.18;
   const moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 90);
   moonGlow.addColorStop(0, "rgba(255, 244, 208, 0.95)");
-  moonGlow.addColorStop(0.4, "rgba(255, 236, 178, 0.36)");
+  moonGlow.addColorStop(0.45, "rgba(255, 236, 178, 0.34)");
   moonGlow.addColorStop(1, "rgba(255, 236, 178, 0)");
   ctx.fillStyle = moonGlow;
   ctx.beginPath();
@@ -1474,24 +1731,58 @@ function drawBackground(ctx) {
   ctx.fill();
 
   ctx.save();
-  ctx.translate(-game.cameraX * 0.08, 0);
-  ctx.fillStyle = "rgba(71, 108, 150, 0.34)";
-  for (let i = 0; i < 14; i += 1) {
-    const x = i * 190;
-    const y = 150 + (i % 3) * 12;
-    ctx.beginPath();
-    ctx.ellipse(x, y, 58, 22, 0, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = "#fff8d8";
+  const stars = [
+    [0.08, 0.12, 2], [0.17, 0.08, 1], [0.28, 0.2, 2], [0.39, 0.1, 1], [0.48, 0.16, 2],
+    [0.62, 0.07, 1], [0.71, 0.18, 2], [0.84, 0.09, 1], [0.93, 0.14, 2], [0.58, 0.25, 1],
+  ];
+  for (const [sx, sy, size] of stars) {
+    const x = sx * game.canvas.width + Math.sin(game.elapsedFrames * 0.01 + sx * 10) * 4;
+    const y = sy * game.canvas.height;
+    ctx.fillRect(x, y, size, size);
   }
   ctx.restore();
 
   ctx.save();
-  ctx.translate(-game.cameraX * 0.25, 0);
+  ctx.translate(-game.cameraX * 0.1, 0);
+  ctx.fillStyle = "rgba(44, 70, 99, 0.45)";
+  for (let i = 0; i < 14; i += 1) {
+    const x = i * 220;
+    const towerHeight = 110 + (i % 4) * 18;
+    ctx.fillRect(x, game.groundY - towerHeight - 36, 82, towerHeight);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.fillRect(x + 14, game.groundY - towerHeight - 22, 8, towerHeight - 20);
+    ctx.fillStyle = "rgba(44, 70, 99, 0.45)";
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(-game.cameraX * 0.24, 0);
   ctx.fillStyle = "rgba(43, 91, 133, 0.42)";
   for (let i = 0; i < 22; i += 1) {
     const x = i * 340;
     const h = 90 + (i % 4) * 25;
     ctx.fillRect(x, game.groundY - h - 20, 220, h);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.fillRect(x + 36, game.groundY - h + 4, 10, h - 24);
+    ctx.fillStyle = "rgba(43, 91, 133, 0.42)";
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(-game.cameraX * 0.18, 0);
+  ctx.fillStyle = "rgba(23, 40, 58, 0.8)";
+  for (let i = 0; i < 18; i += 1) {
+    const x = i * 420 + 40;
+    const roofY = game.groundY - 30 - (i % 3) * 18;
+    ctx.fillRect(x, roofY, 260, 8);
+    ctx.fillRect(x + 24, roofY - 52, 14, 52);
+    ctx.fillRect(x + 180, roofY - 34, 12, 34);
+    ctx.fillStyle = i % 2 === 0 ? "rgba(255, 190, 61, 0.22)" : "rgba(74, 215, 209, 0.18)";
+    ctx.fillRect(x + 72, roofY - 26, 26, 14);
+    ctx.fillRect(x + 118, roofY - 26, 26, 14);
+    ctx.fillStyle = "rgba(23, 40, 58, 0.8)";
   }
   ctx.restore();
 
@@ -1521,15 +1812,17 @@ function drawWorld(ctx) {
   ctx.fillStyle = "#3d6388";
   for (const platform of game.platforms) {
     const platformShade = ctx.createLinearGradient(0, platform.y, 0, platform.y + platform.height);
-    platformShade.addColorStop(0, "#6c8fb0");
-    platformShade.addColorStop(0.4, "#456a8d");
-    platformShade.addColorStop(1, "#2c4d6b");
+    platformShade.addColorStop(0, "#8ea8bf");
+    platformShade.addColorStop(0.4, "#4d6c86");
+    platformShade.addColorStop(1, "#233e57");
     ctx.fillStyle = platformShade;
     ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-    ctx.fillRect(platform.x, platform.y, platform.width, 4);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.fillRect(platform.x, platform.y, platform.width, 3);
     ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
-    ctx.fillRect(platform.x, platform.y + platform.height - 4, platform.width, 4);
+    ctx.fillRect(platform.x, platform.y + platform.height - 3, platform.width, 3);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.strokeRect(platform.x + 1, platform.y + 1, platform.width - 2, platform.height - 2);
   }
 
   for (const key of game.keysInLevel) {
@@ -1611,6 +1904,32 @@ function drawWorld(ctx) {
     ctx.fillRect(clue.x, clue.y, 18, 14);
     ctx.strokeStyle = "rgba(12, 20, 32, 0.45)";
     ctx.strokeRect(clue.x, clue.y, 18, 14);
+  }
+
+  for (const portal of game.bikePortals) {
+    const glow = ctx.createRadialGradient(
+      portal.x + portal.width / 2,
+      portal.y + portal.height / 2,
+      8,
+      portal.x + portal.width / 2,
+      portal.y + portal.height / 2,
+      48
+    );
+    if (portal.used) {
+      glow.addColorStop(0, "rgba(74, 215, 209, 0.26)");
+      glow.addColorStop(1, "rgba(74, 215, 209, 0)");
+    } else {
+      glow.addColorStop(0, "rgba(255, 142, 62, 0.62)");
+      glow.addColorStop(1, "rgba(255, 142, 62, 0)");
+    }
+    ctx.fillStyle = glow;
+    ctx.fillRect(portal.x - 30, portal.y - 22, portal.width + 60, portal.height + 44);
+
+    const frame = ctx.createLinearGradient(portal.x, portal.y, portal.x + portal.width, portal.y + portal.height);
+    frame.addColorStop(0, portal.used ? "rgba(99, 195, 191, 0.9)" : "rgba(255, 198, 122, 0.95)");
+    frame.addColorStop(1, portal.used ? "rgba(74, 215, 209, 0.86)" : "rgba(255, 113, 61, 0.95)");
+    ctx.fillStyle = frame;
+    drawRoundedRect(ctx, portal.x, portal.y, portal.width, portal.height, 20, frame, "rgba(255,255,255,0.4)", 2);
   }
 
   for (const door of game.doors) {
@@ -1700,7 +2019,11 @@ function drawWorld(ctx) {
     ctx.beginPath();
     ctx.ellipse(player.x + player.width / 2, game.groundY - 4, 18, 6, 0, 0, Math.PI * 2);
     ctx.fill();
-    drawStickman(ctx, player, currentSkin.colors[0], currentSkin.colors[1]);
+    if (player.onBike) {
+      drawBikeRider(ctx, player, currentSkin.colors[0], currentSkin.colors[1]);
+    } else {
+      drawStickman(ctx, player, currentSkin.colors[0], currentSkin.colors[1]);
+    }
     ctx.fillStyle = "#ecf5ff";
     ctx.font = "700 12px Nunito";
     ctx.fillText(player.label, player.x + 10, player.y - 8);
@@ -1737,7 +2060,18 @@ function drawHud(ctx) {
 
   ctx.fillStyle = "#f8be3d";
   ctx.font = "700 16px Nunito";
-  ctx.fillText("E = interact with nearest door", 470, 34);
+  ctx.fillText("Parkour flow: run, wall-jump, roll, and keep momentum", 470, 34);
+
+  const bikeActive = game.players.some((player) => player.onBike);
+  const bikePortalRemaining = game.bikePortals.some((portal) => !portal.used);
+  ctx.font = "700 14px Nunito";
+  if (bikeActive) {
+    ctx.fillStyle = "#9df7ff";
+    ctx.fillText("Bike mode: Up accelerate, Down brake, Left/Right tilt for flips", 470, 56);
+  } else if (bikePortalRemaining) {
+    ctx.fillStyle = "#ffd9a8";
+    ctx.fillText("Hit the glowing portal to switch to Moto bike controls", 470, 56);
+  }
 
   if (game.message) {
     ctx.fillStyle = "rgba(7, 18, 32, 0.72)";
