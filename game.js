@@ -280,10 +280,9 @@ function buildMotoChallengeCourse() {
       { x: 2240, y: 352, width: 180, height: 20 },
     ],
     hazards: [
-      { type: "spike", x: 760, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 1380, y: 420, width: 40, height: 20 },
-      { type: "lowLaser", x: 1720, y: 366, width: 90, height: 14 },
-      { type: "spike", x: 2130, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 820, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 1480, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 2180, y: 420, width: 40, height: 20 },
     ],
   };
 }
@@ -299,7 +298,7 @@ function beginMotoChallenge(triggerPlayer) {
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
-  game.checkpoints = [{ x: 920, active: false }, { x: 1760, active: false }];
+  game.checkpoints = [{ x: 760, active: false }, { x: 1420, active: false }, { x: 1980, active: false }];
   game.doors = [];
   game.clueMarkers = [];
   game.bikePortals = [];
@@ -308,14 +307,14 @@ function beginMotoChallenge(triggerPlayer) {
   for (const player of game.players) {
     player.x = 120 + player.id * 36;
     player.y = 320;
-    player.vx = 7.2;
+    player.vx = 5.8;
     player.vy = 0;
     player.onBike = true;
     player.bikeAngle = 0;
     player.bikeAngularVelocity = 0;
     player.bikeAirborne = false;
     player.bikeSpin = 0;
-    player.input.upHeld = player.id === triggerPlayer.id;
+    player.input.upHeld = player.id === triggerPlayer.id || player.id === 0;
   }
 
   game.cameraX = 0;
@@ -1100,7 +1099,7 @@ function updateBikePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
-  const bikeAccel = p.input.upHeld ? 0.5 : 0.06;
+  const bikeAccel = p.input.upHeld ? 0.5 : 0.08;
   const bikeMaxSpeed = p.maxRunSpeed + 5.8;
 
   if (p.input.upHeld) p.vx += bikeAccel;
@@ -1182,7 +1181,7 @@ function updateBikePlayer(player) {
     }
   }
 
-  if (p.onGround && Math.abs(p.bikeAngle) > 1.1 && Math.abs(p.vx) > 2.2 && p.invulnerableFrames <= 0) {
+  if (p.onGround && Math.abs(p.bikeAngle) > 1.45 && Math.abs(p.vx) > 5 && p.invulnerableFrames <= 0) {
     triggerRespawn(p, "trap");
     return;
   }
