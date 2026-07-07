@@ -263,26 +263,22 @@ function setupBikePortals(levelNumber) {
 
 function buildMotoChallengeCourse() {
   return {
-    worldWidth: 2400,
+    worldWidth: 2320,
     platforms: [
-      { x: 0, y: 440, width: 340, height: 20 },
-      { x: 320, y: 426, width: 140, height: 20 },
-      { x: 450, y: 412, width: 140, height: 20 },
-      { x: 580, y: 398, width: 140, height: 20 },
-      { x: 710, y: 384, width: 180, height: 20 },
-      { x: 920, y: 364, width: 150, height: 20 },
-      { x: 1060, y: 348, width: 150, height: 20 },
-      { x: 1200, y: 332, width: 180, height: 20 },
-      { x: 1420, y: 352, width: 200, height: 20 },
-      { x: 1660, y: 382, width: 180, height: 20 },
-      { x: 1860, y: 402, width: 170, height: 20 },
-      { x: 2040, y: 382, width: 190, height: 20 },
-      { x: 2240, y: 352, width: 180, height: 20 },
+      { x: 0, y: 440, width: 360, height: 20 },
+      { x: 392, y: 430, width: 220, height: 20 },
+      { x: 646, y: 414, width: 210, height: 20 },
+      { x: 888, y: 396, width: 220, height: 20 },
+      { x: 1144, y: 372, width: 230, height: 20 },
+      { x: 1410, y: 386, width: 220, height: 20 },
+      { x: 1660, y: 408, width: 220, height: 20 },
+      { x: 1910, y: 392, width: 230, height: 20 },
+      { x: 2168, y: 372, width: 190, height: 20 },
     ],
     hazards: [
-      { type: "spike", x: 820, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 1480, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 2180, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 980, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 1740, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 2070, y: 420, width: 40, height: 20 },
     ],
   };
 }
@@ -298,7 +294,7 @@ function beginMotoChallenge(triggerPlayer) {
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
-  game.checkpoints = [{ x: 760, active: false }, { x: 1420, active: false }, { x: 1980, active: false }];
+  game.checkpoints = [{ x: 620, active: false }, { x: 1280, active: false }, { x: 1860, active: false }];
   game.doors = [];
   game.clueMarkers = [];
   game.bikePortals = [];
@@ -1166,7 +1162,7 @@ function updateBikePlayer(player) {
       p.bikeSpin = 0;
     } else if (prevX + p.width <= platform.x && p.x + p.width > platform.x) {
       const climbDelta = platform.y - (p.y + p.height);
-      if (p.vx > 1.2 && climbDelta <= 18 && climbDelta >= -6) {
+      if (p.vx > 1.4 && climbDelta <= 42 && climbDelta >= -14) {
         p.y = platform.y - p.height;
         p.vy = 0;
         p.onGround = true;
@@ -1181,7 +1177,7 @@ function updateBikePlayer(player) {
     }
   }
 
-  if (p.onGround && Math.abs(p.bikeAngle) > 1.45 && Math.abs(p.vx) > 5 && p.invulnerableFrames <= 0) {
+  if (p.onGround && Math.abs(p.bikeAngle) > 1.62 && Math.abs(p.vx) > 6.2 && p.invulnerableFrames <= 0) {
     triggerRespawn(p, "trap");
     return;
   }
