@@ -164,6 +164,7 @@ const game = {
   worldWidth: 7000,
   groundY: 440,
   platforms: [],
+  ramps: [],
   keysInLevel: [],
   hazards: [],
   enemies: [],
@@ -265,20 +266,20 @@ function buildMotoChallengeCourse() {
   return {
     worldWidth: 2320,
     platforms: [
-      { x: 0, y: 440, width: 360, height: 20 },
-      { x: 392, y: 430, width: 220, height: 20 },
-      { x: 646, y: 414, width: 210, height: 20 },
-      { x: 888, y: 396, width: 220, height: 20 },
-      { x: 1144, y: 372, width: 230, height: 20 },
-      { x: 1410, y: 386, width: 220, height: 20 },
-      { x: 1660, y: 408, width: 220, height: 20 },
-      { x: 1910, y: 392, width: 230, height: 20 },
-      { x: 2168, y: 372, width: 190, height: 20 },
+      { x: 0, y: 440, width: 420, height: 20 },
+      { x: 760, y: 380, width: 280, height: 20 },
+      { x: 1340, y: 430, width: 260, height: 20 },
+      { x: 1820, y: 360, width: 500, height: 20 },
+    ],
+    ramps: [
+      { x: 420, y1: 440, y2: 380, width: 340 },
+      { x: 1040, y1: 380, y2: 430, width: 300 },
+      { x: 1600, y1: 430, y2: 360, width: 220 },
     ],
     hazards: [
-      { type: "spike", x: 980, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 1740, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 2070, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 920, y: 360, width: 40, height: 20 },
+      { type: "spike", x: 1470, y: 410, width: 40, height: 20 },
+      { type: "spike", x: 2010, y: 340, width: 40, height: 20 },
     ],
   };
 }
@@ -291,10 +292,11 @@ function beginMotoChallenge(triggerPlayer) {
 
   game.worldWidth = course.worldWidth;
   game.platforms = course.platforms;
+  game.ramps = course.ramps;
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
-  game.checkpoints = [{ x: 620, active: false }, { x: 1280, active: false }, { x: 1860, active: false }];
+  game.checkpoints = [{ x: 760, active: false }, { x: 1360, active: false }, { x: 1940, active: false }];
   game.doors = [];
   game.clueMarkers = [];
   game.bikePortals = [];
@@ -412,6 +414,7 @@ function setupWorld(levelNumber = 1) {
   if (levelNumber === 1) {
     game.worldWidth = 7000;
     game.platforms = basePlatforms;
+    game.ramps = [];
     game.keysInLevel = baseKeys;
     game.hazards = baseHazards;
     game.enemies = baseEnemies;
@@ -435,6 +438,7 @@ function setupWorld(levelNumber = 1) {
         { x: 7160, y: 300, width: 170, height: 20 },
         { x: 7400, y: 255, width: 150, height: 20 },
       ]);
+    game.ramps = [];
 
     game.keysInLevel = baseKeys.map((key, i) => ({
       ...key,
@@ -497,6 +501,7 @@ function setupWorld(levelNumber = 1) {
       { x: game.worldWidth - 430, y: 220, width: 180, height: 20 },
       { x: game.worldWidth - 190, y: 300, width: 220, height: 22 },
     ]);
+  game.ramps = [];
 
   game.keysInLevel = baseKeys.map((key, i) => ({
     ...key,
@@ -1174,6 +1179,30 @@ function updateBikePlayer(player) {
     } else if (prevX >= platform.x + platform.width && p.x < platform.x + platform.width) {
       p.x = platform.x + platform.width;
       p.vx *= 0.35;
+    }
+  }
+
+  // Ride along sloped ramps in the Moto trial.
+  const bikeAnchorX = p.x + p.width * 0.55;
+  for (const ramp of game.ramps) {
+    const rampEnd = ramp.x + ramp.width;
+    if (bikeAnchorX < ramp.x || bikeAnchorX > rampEnd) continue;
+
+    const t = (bikeAnchorX - ramp.x) / ramp.width;
+    const surfaceY = ramp.y1 + (ramp.y2 - ramp.y1) * t;
+    const wheelY = p.y + p.height;
+    const prevWheelY = prevY + p.height;
+
+    if (wheelY >= surfaceY - 2 && prevWheelY <= surfaceY + 20 && p.vy >= -2) {
+      p.y = surfaceY - p.height;
+      p.vy = 0;
+      p.onGround = true;
+      p.bikeAirborne = false;
+      p.bikeSpin = 0;
+
+      const slopeAngle = Math.atan2(ramp.y2 - ramp.y1, ramp.width);
+      p.bikeAngle = p.bikeAngle * 0.78 + slopeAngle * 0.22;
+      break;
     }
   }
 
@@ -1905,6 +1934,27 @@ function drawWorld(ctx) {
     ctx.fillRect(platform.x, platform.y + platform.height - 3, platform.width, 3);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
     ctx.strokeRect(platform.x + 1, platform.y + 1, platform.width - 2, platform.height - 2);
+  }
+
+  for (const ramp of game.ramps) {
+    const rampGradient = ctx.createLinearGradient(ramp.x, ramp.y1, ramp.x + ramp.width, ramp.y2);
+    rampGradient.addColorStop(0, "#9cb4ca");
+    rampGradient.addColorStop(1, "#2b4763");
+    ctx.fillStyle = rampGradient;
+    ctx.beginPath();
+    ctx.moveTo(ramp.x, ramp.y1);
+    ctx.lineTo(ramp.x + ramp.width, ramp.y2);
+    ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 20);
+    ctx.lineTo(ramp.x, ramp.y1 + 20);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.26)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ramp.x, ramp.y1 + 1);
+    ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 1);
+    ctx.stroke();
   }
 
   for (const key of game.keysInLevel) {
