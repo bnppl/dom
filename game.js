@@ -73,6 +73,9 @@ const upgrades = [
   { id: "jump", name: "Spring Boots", cost: 30, maxLevel: 5, note: "+Jump height" },
   { id: "shield", name: "Shield Coat", cost: 35, maxLevel: 3, note: "-Trap key loss" },
   { id: "dash", name: "Dash Core", cost: 40, maxLevel: 4, note: "+Roll boost" },
+  { id: "magnet", name: "Magnet Core", cost: 32, maxLevel: 5, note: "+Key pull radius" },
+  { id: "nitro", name: "Nitro Tank", cost: 45, maxLevel: 4, note: "+Bike speed" },
+  { id: "gyro", name: "Gyro Rig", cost: 42, maxLevel: 4, note: "+Bike stability" },
 ];
 
 const defaultSave = {
@@ -86,6 +89,9 @@ const defaultSave = {
     jump: 0,
     shield: 0,
     dash: 0,
+    magnet: 0,
+    nitro: 0,
+    gyro: 0,
   },
   unlockedSkins: skins.filter((skin) => skin.unlockedByDefault).map((skin) => skin.id),
 };
@@ -120,6 +126,9 @@ function loadSave() {
         jump: Number.isInteger(parsed?.upgrades?.jump) ? Math.max(0, Math.min(5, parsed.upgrades.jump)) : 0,
         shield: Number.isInteger(parsed?.upgrades?.shield) ? Math.max(0, Math.min(3, parsed.upgrades.shield)) : 0,
         dash: Number.isInteger(parsed?.upgrades?.dash) ? Math.max(0, Math.min(4, parsed.upgrades.dash)) : 0,
+        magnet: Number.isInteger(parsed?.upgrades?.magnet) ? Math.max(0, Math.min(5, parsed.upgrades.magnet)) : 0,
+        nitro: Number.isInteger(parsed?.upgrades?.nitro) ? Math.max(0, Math.min(4, parsed.upgrades.nitro)) : 0,
+        gyro: Number.isInteger(parsed?.upgrades?.gyro) ? Math.max(0, Math.min(4, parsed.upgrades.gyro)) : 0,
       },
     };
   } catch {
@@ -223,6 +232,9 @@ function createPlayer(index) {
     bikeAngularVelocity: 0,
     bikeAirborne: false,
     bikeSpin: 0,
+    bikeAccelBonus: 0,
+    bikeTopSpeedBonus: 0,
+    bikeStability: 0,
     invulnerableFrames: 0,
     stepFrame: 0,
     input: {
@@ -239,12 +251,17 @@ function applyPlayerUpgrades(player) {
   const speedLevel = game.save.upgrades.speed || 0;
   const jumpLevel = game.save.upgrades.jump || 0;
   const dashLevel = game.save.upgrades.dash || 0;
+  const nitroLevel = game.save.upgrades.nitro || 0;
+  const gyroLevel = game.save.upgrades.gyro || 0;
 
   player.maxRunSpeed += speedLevel * 0.5;
   player.accelGround += speedLevel * 0.08;
   player.accelAir += speedLevel * 0.04;
   player.jumpPower += jumpLevel * 0.9;
   player.rollBoost = 3 + dashLevel * 0.55;
+  player.bikeAccelBonus = nitroLevel * 0.05;
+  player.bikeTopSpeedBonus = nitroLevel * 0.75;
+  player.bikeStability = gyroLevel * 0.12;
 }
 
 function setupBikePortals(levelNumber) {
@@ -264,7 +281,7 @@ function setupBikePortals(levelNumber) {
 
 function buildMotoChallengeCourse() {
   return {
-    worldWidth: 3680,
+    worldWidth: 5520,
     platforms: [
       { x: 0, y: 440, width: 420, height: 20 },
       { x: 800, y: 350, width: 180, height: 20 },
@@ -272,6 +289,10 @@ function buildMotoChallengeCourse() {
       { x: 1770, y: 330, width: 240, height: 20 },
       { x: 2420, y: 390, width: 260, height: 20 },
       { x: 3010, y: 340, width: 590, height: 20 },
+      { x: 3730, y: 410, width: 240, height: 20 },
+      { x: 4230, y: 320, width: 260, height: 20 },
+      { x: 4860, y: 370, width: 260, height: 20 },
+      { x: 5240, y: 330, width: 320, height: 20 },
     ],
     ramps: [
       { x: 420, y1: 440, y2: 350, width: 380 },
@@ -279,6 +300,10 @@ function buildMotoChallengeCourse() {
       { x: 1540, y1: 420, y2: 330, width: 230 },
       { x: 2010, y1: 330, y2: 390, width: 410 },
       { x: 2680, y1: 390, y2: 340, width: 330 },
+      { x: 3600, y1: 340, y2: 410, width: 260 },
+      { x: 3970, y1: 410, y2: 320, width: 260 },
+      { x: 4490, y1: 320, y2: 370, width: 300 },
+      { x: 5120, y1: 370, y2: 330, width: 120 },
     ],
     hazards: [
       { type: "spike", x: 730, y: 420, width: 40, height: 20 },
@@ -287,6 +312,9 @@ function buildMotoChallengeCourse() {
       { type: "spike", x: 1900, y: 310, width: 40, height: 20 },
       { type: "spike", x: 2520, y: 370, width: 40, height: 20 },
       { type: "spike", x: 3230, y: 320, width: 40, height: 20 },
+      { type: "spike", x: 3800, y: 390, width: 40, height: 20 },
+      { type: "spike", x: 4410, y: 300, width: 40, height: 20 },
+      { type: "spike", x: 4990, y: 350, width: 40, height: 20 },
     ],
   };
 }
@@ -307,7 +335,9 @@ function beginMotoChallenge(triggerPlayer) {
     { x: 980, active: false },
     { x: 1760, active: false },
     { x: 2620, active: false },
-    { x: 3320, active: false },
+    { x: 3480, active: false },
+    { x: 4320, active: false },
+    { x: 5060, active: false },
   ];
   game.doors = [];
   game.clueMarkers = [];
@@ -1112,8 +1142,8 @@ function updateBikePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
-  const bikeAccel = p.input.upHeld ? 0.5 : 0.08;
-  const bikeMaxSpeed = p.maxRunSpeed + 5.8;
+  const bikeAccel = (p.input.upHeld ? 0.5 : 0.08) + (p.bikeAccelBonus || 0);
+  const bikeMaxSpeed = p.maxRunSpeed + 5.8 + (p.bikeTopSpeedBonus || 0);
 
   if (p.input.upHeld) p.vx += bikeAccel;
   if (p.input.down) {
@@ -1129,16 +1159,17 @@ function updateBikePlayer(player) {
   if (p.vx < -4.5) p.vx = -4.5;
 
   const tiltInput = (p.input.right ? 1 : 0) - (p.input.left ? 1 : 0);
-  p.bikeAngularVelocity += tiltInput * (p.onGround ? 0.01 : 0.018);
-  p.bikeAngularVelocity *= p.onGround ? 0.88 : 0.988;
+  const stability = p.bikeStability || 0;
+  p.bikeAngularVelocity += tiltInput * (p.onGround ? 0.01 : 0.018) * (1 - stability * 0.25);
+  p.bikeAngularVelocity *= (p.onGround ? 0.88 : 0.988) + stability * 0.04;
   p.bikeAngle += p.bikeAngularVelocity;
 
   if (p.onGround) {
-    p.bikeAngle *= 0.86;
+    p.bikeAngle *= 0.86 + stability * 0.05;
   }
 
-  if (p.bikeAngle > 1.85) p.bikeAngle = 1.85;
-  if (p.bikeAngle < -1.85) p.bikeAngle = -1.85;
+  if (p.bikeAngle > 1.95) p.bikeAngle = 1.95;
+  if (p.bikeAngle < -1.95) p.bikeAngle = -1.95;
 
   p.vy += game.gravity * 0.9;
   if (p.vy > p.maxFallSpeed + 3) p.vy = p.maxFallSpeed + 3;
@@ -1218,7 +1249,9 @@ function updateBikePlayer(player) {
     }
   }
 
-  if (p.onGround && Math.abs(p.bikeAngle) > 1.62 && Math.abs(p.vx) > 6.2 && p.invulnerableFrames <= 0) {
+  const crashAngle = 1.62 + stability * 0.24;
+  const crashSpeed = 6.2 + stability * 0.7;
+  if (p.onGround && Math.abs(p.bikeAngle) > crashAngle && Math.abs(p.vx) > crashSpeed && p.invulnerableFrames <= 0) {
     triggerRespawn(p, "trap");
     return;
   }
@@ -1455,7 +1488,7 @@ function updatePlayer(player) {
         game.save.keys += 1;
       }
 
-      const magnetRadius = 14 + (game.save.upgrades.speed || 0) * 4;
+      const magnetRadius = 14 + (game.save.upgrades.magnet || 0) * 6 + (game.save.upgrades.speed || 0) * 2;
       for (const nearby of game.keysInLevel) {
         if (nearby.collected || nearby.id === key.id) continue;
         if (Math.abs(nearby.x - p.x) < magnetRadius && Math.abs(nearby.y - p.y) < magnetRadius) {
