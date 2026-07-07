@@ -264,19 +264,29 @@ function setupBikePortals(levelNumber) {
 
 function buildMotoChallengeCourse() {
   return {
-    worldWidth: 2320,
+    worldWidth: 3680,
     platforms: [
       { x: 0, y: 440, width: 420, height: 20 },
-      { x: 1880, y: 360, width: 440, height: 20 },
+      { x: 800, y: 350, width: 180, height: 20 },
+      { x: 1260, y: 420, width: 280, height: 20 },
+      { x: 1770, y: 330, width: 240, height: 20 },
+      { x: 2420, y: 390, width: 260, height: 20 },
+      { x: 3010, y: 340, width: 590, height: 20 },
     ],
     ramps: [
-      { x: 420, y1: 440, y2: 350, width: 980 },
-      { x: 1400, y1: 350, y2: 360, width: 480 },
+      { x: 420, y1: 440, y2: 350, width: 380 },
+      { x: 980, y1: 350, y2: 420, width: 280 },
+      { x: 1540, y1: 420, y2: 330, width: 230 },
+      { x: 2010, y1: 330, y2: 390, width: 410 },
+      { x: 2680, y1: 390, y2: 340, width: 330 },
     ],
     hazards: [
-      { type: "spike", x: 1260, y: 330, width: 40, height: 20 },
-      { type: "spike", x: 1690, y: 340, width: 40, height: 20 },
-      { type: "spike", x: 2060, y: 340, width: 40, height: 20 },
+      { type: "spike", x: 730, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 900, y: 330, width: 40, height: 20 },
+      { type: "spike", x: 1400, y: 400, width: 40, height: 20 },
+      { type: "spike", x: 1900, y: 310, width: 40, height: 20 },
+      { type: "spike", x: 2520, y: 370, width: 40, height: 20 },
+      { type: "spike", x: 3230, y: 320, width: 40, height: 20 },
     ],
   };
 }
@@ -293,7 +303,12 @@ function beginMotoChallenge(triggerPlayer) {
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
-  game.checkpoints = [{ x: 840, active: false }, { x: 1460, active: false }, { x: 1980, active: false }];
+  game.checkpoints = [
+    { x: 980, active: false },
+    { x: 1760, active: false },
+    { x: 2620, active: false },
+    { x: 3320, active: false },
+  ];
   game.doors = [];
   game.clueMarkers = [];
   game.bikePortals = [];
