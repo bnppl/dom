@@ -76,6 +76,9 @@ const upgrades = [
   { id: "magnet", name: "Magnet Core", cost: 32, maxLevel: 5, note: "+Key pull radius" },
   { id: "nitro", name: "Nitro Tank", cost: 45, maxLevel: 4, note: "+Bike speed" },
   { id: "gyro", name: "Gyro Rig", cost: 42, maxLevel: 4, note: "+Bike stability" },
+  { id: "air", name: "Aero Threads", cost: 36, maxLevel: 5, note: "+Air control" },
+  { id: "grip", name: "Climber Gloves", cost: 39, maxLevel: 4, note: "+Wall cling" },
+  { id: "recover", name: "Reflex Chip", cost: 34, maxLevel: 5, note: "+Jump timing" },
 ];
 
 const defaultSave = {
@@ -92,6 +95,9 @@ const defaultSave = {
     magnet: 0,
     nitro: 0,
     gyro: 0,
+    air: 0,
+    grip: 0,
+    recover: 0,
   },
   unlockedSkins: skins.filter((skin) => skin.unlockedByDefault).map((skin) => skin.id),
 };
@@ -129,6 +135,9 @@ function loadSave() {
         magnet: Number.isInteger(parsed?.upgrades?.magnet) ? Math.max(0, Math.min(5, parsed.upgrades.magnet)) : 0,
         nitro: Number.isInteger(parsed?.upgrades?.nitro) ? Math.max(0, Math.min(4, parsed.upgrades.nitro)) : 0,
         gyro: Number.isInteger(parsed?.upgrades?.gyro) ? Math.max(0, Math.min(4, parsed.upgrades.gyro)) : 0,
+        air: Number.isInteger(parsed?.upgrades?.air) ? Math.max(0, Math.min(5, parsed.upgrades.air)) : 0,
+        grip: Number.isInteger(parsed?.upgrades?.grip) ? Math.max(0, Math.min(4, parsed.upgrades.grip)) : 0,
+        recover: Number.isInteger(parsed?.upgrades?.recover) ? Math.max(0, Math.min(5, parsed.upgrades.recover)) : 0,
       },
     };
   } catch {
@@ -235,6 +244,7 @@ function createPlayer(index) {
     bikeAccelBonus: 0,
     bikeTopSpeedBonus: 0,
     bikeStability: 0,
+    wallGrip: 0,
     invulnerableFrames: 0,
     stepFrame: 0,
     input: {
@@ -253,12 +263,21 @@ function applyPlayerUpgrades(player) {
   const dashLevel = game.save.upgrades.dash || 0;
   const nitroLevel = game.save.upgrades.nitro || 0;
   const gyroLevel = game.save.upgrades.gyro || 0;
+  const airLevel = game.save.upgrades.air || 0;
+  const gripLevel = game.save.upgrades.grip || 0;
+  const recoverLevel = game.save.upgrades.recover || 0;
 
   player.maxRunSpeed += speedLevel * 0.5;
   player.accelGround += speedLevel * 0.08;
   player.accelAir += speedLevel * 0.04;
   player.jumpPower += jumpLevel * 0.9;
+  player.accelAir += airLevel * 0.08;
+  player.jumpCutFactor += airLevel * 0.025;
+  if (player.jumpCutFactor > 0.78) player.jumpCutFactor = 0.78;
   player.rollBoost = 3 + dashLevel * 0.55;
+  player.wallGrip = gripLevel;
+  player.coyoteFrames += recoverLevel * 2;
+  player.jumpBufferFrames += recoverLevel * 2;
   player.bikeAccelBonus = nitroLevel * 0.05;
   player.bikeTopSpeedBonus = nitroLevel * 0.75;
   player.bikeStability = gyroLevel * 0.12;
@@ -281,40 +300,64 @@ function setupBikePortals(levelNumber) {
 
 function buildMotoChallengeCourse() {
   return {
-    worldWidth: 5520,
+    worldWidth: 9220,
     platforms: [
       { x: 0, y: 440, width: 420, height: 20 },
-      { x: 800, y: 350, width: 180, height: 20 },
-      { x: 1260, y: 420, width: 280, height: 20 },
-      { x: 1770, y: 330, width: 240, height: 20 },
-      { x: 2420, y: 390, width: 260, height: 20 },
-      { x: 3010, y: 340, width: 590, height: 20 },
-      { x: 3730, y: 410, width: 240, height: 20 },
-      { x: 4230, y: 320, width: 260, height: 20 },
-      { x: 4860, y: 370, width: 260, height: 20 },
-      { x: 5240, y: 330, width: 320, height: 20 },
+      { x: 860, y: 348, width: 170, height: 20 },
+      { x: 1360, y: 420, width: 260, height: 20 },
+      { x: 1880, y: 320, width: 230, height: 20 },
+      { x: 2470, y: 392, width: 220, height: 20 },
+      { x: 3080, y: 332, width: 420, height: 20 },
+      { x: 3650, y: 286, width: 220, height: 20 },
+      { x: 4170, y: 402, width: 180, height: 20 },
+      { x: 4660, y: 328, width: 240, height: 20 },
+      { x: 5290, y: 376, width: 210, height: 20 },
+      { x: 5750, y: 300, width: 230, height: 20 },
+      { x: 6310, y: 354, width: 210, height: 20 },
+      { x: 6760, y: 286, width: 220, height: 20 },
+      { x: 7260, y: 334, width: 240, height: 20 },
+      { x: 7770, y: 268, width: 220, height: 20 },
+      { x: 8240, y: 336, width: 260, height: 20 },
+      { x: 8700, y: 286, width: 260, height: 20 },
+      { x: 9040, y: 320, width: 240, height: 20 },
     ],
     ramps: [
-      { x: 420, y1: 440, y2: 350, width: 380 },
-      { x: 980, y1: 350, y2: 420, width: 280 },
-      { x: 1540, y1: 420, y2: 330, width: 230 },
-      { x: 2010, y1: 330, y2: 390, width: 410 },
-      { x: 2680, y1: 390, y2: 340, width: 330 },
-      { x: 3600, y1: 340, y2: 410, width: 260 },
-      { x: 3970, y1: 410, y2: 320, width: 260 },
-      { x: 4490, y1: 320, y2: 370, width: 300 },
-      { x: 5120, y1: 370, y2: 330, width: 120 },
+      { x: 420, y1: 440, y2: 348, width: 440 },
+      { x: 1030, y1: 348, y2: 420, width: 330 },
+      { x: 1620, y1: 420, y2: 320, width: 260 },
+      { x: 2110, y1: 320, y2: 392, width: 360 },
+      { x: 2690, y1: 392, y2: 332, width: 390 },
+      { x: 3500, y1: 332, y2: 286, width: 150 },
+      { x: 3870, y1: 286, y2: 402, width: 300 },
+      { x: 4350, y1: 402, y2: 328, width: 310 },
+      { x: 4900, y1: 328, y2: 376, width: 390 },
+      { x: 5500, y1: 376, y2: 300, width: 250 },
+      { x: 5980, y1: 300, y2: 354, width: 330 },
+      { x: 6520, y1: 354, y2: 286, width: 240 },
+      { x: 6980, y1: 286, y2: 334, width: 280 },
+      { x: 7500, y1: 334, y2: 268, width: 270 },
+      { x: 7990, y1: 268, y2: 336, width: 250 },
+      { x: 8500, y1: 336, y2: 286, width: 200 },
+      { x: 8960, y1: 286, y2: 320, width: 80 },
     ],
     hazards: [
-      { type: "spike", x: 730, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 900, y: 330, width: 40, height: 20 },
-      { type: "spike", x: 1400, y: 400, width: 40, height: 20 },
-      { type: "spike", x: 1900, y: 310, width: 40, height: 20 },
-      { type: "spike", x: 2520, y: 370, width: 40, height: 20 },
-      { type: "spike", x: 3230, y: 320, width: 40, height: 20 },
-      { type: "spike", x: 3800, y: 390, width: 40, height: 20 },
-      { type: "spike", x: 4410, y: 300, width: 40, height: 20 },
-      { type: "spike", x: 4990, y: 350, width: 40, height: 20 },
+      { type: "spike", x: 760, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 980, y: 328, width: 40, height: 20 },
+      { type: "spike", x: 1460, y: 400, width: 40, height: 20 },
+      { type: "spike", x: 1970, y: 300, width: 40, height: 20 },
+      { type: "spike", x: 2590, y: 372, width: 40, height: 20 },
+      { type: "spike", x: 3320, y: 312, width: 40, height: 20 },
+      { type: "spike", x: 3730, y: 266, width: 40, height: 20 },
+      { type: "spike", x: 4260, y: 382, width: 40, height: 20 },
+      { type: "spike", x: 4750, y: 308, width: 40, height: 20 },
+      { type: "spike", x: 5360, y: 356, width: 40, height: 20 },
+      { type: "spike", x: 5850, y: 280, width: 40, height: 20 },
+      { type: "spike", x: 6410, y: 334, width: 40, height: 20 },
+      { type: "spike", x: 6850, y: 266, width: 40, height: 20 },
+      { type: "spike", x: 7350, y: 314, width: 40, height: 20 },
+      { type: "spike", x: 7860, y: 248, width: 40, height: 20 },
+      { type: "spike", x: 8330, y: 316, width: 40, height: 20 },
+      { type: "spike", x: 8810, y: 266, width: 40, height: 20 },
     ],
   };
 }
@@ -322,7 +365,7 @@ function buildMotoChallengeCourse() {
 function beginMotoChallenge(triggerPlayer) {
   const course = buildMotoChallengeCourse();
   game.motoChallenge.active = true;
-  game.motoChallenge.finishX = course.worldWidth - 110;
+  game.motoChallenge.finishX = course.worldWidth - 90;
   game.motoChallenge.startedFromLevel = game.currentLevel;
 
   game.worldWidth = course.worldWidth;
@@ -332,12 +375,13 @@ function beginMotoChallenge(triggerPlayer) {
   game.enemies = [];
   game.keysInLevel = [];
   game.checkpoints = [
-    { x: 980, active: false },
-    { x: 1760, active: false },
-    { x: 2620, active: false },
-    { x: 3480, active: false },
-    { x: 4320, active: false },
-    { x: 5060, active: false },
+    { x: 1120, active: false },
+    { x: 2360, active: false },
+    { x: 3580, active: false },
+    { x: 4860, active: false },
+    { x: 6140, active: false },
+    { x: 7420, active: false },
+    { x: 8580, active: false },
   ];
   game.doors = [];
   game.clueMarkers = [];
@@ -358,7 +402,7 @@ function beginMotoChallenge(triggerPlayer) {
   }
 
   game.cameraX = 0;
-  setMessage("Teleported to Moto Trial. Finish this track to clear the level!", 220);
+  setMessage("Teleported to Moto Trial X. Longer track, tougher landings, bigger jumps.", 220);
 }
 
 function setupWorld(levelNumber = 1) {
@@ -1142,8 +1186,8 @@ function updateBikePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
-  const bikeAccel = (p.input.upHeld ? 0.5 : 0.08) + (p.bikeAccelBonus || 0);
-  const bikeMaxSpeed = p.maxRunSpeed + 5.8 + (p.bikeTopSpeedBonus || 0);
+  const bikeAccel = (p.input.upHeld ? 0.52 : 0.05) + (p.bikeAccelBonus || 0);
+  const bikeMaxSpeed = p.maxRunSpeed + 6.4 + (p.bikeTopSpeedBonus || 0);
 
   if (p.input.upHeld) p.vx += bikeAccel;
   if (p.input.down) {
@@ -1180,11 +1224,17 @@ function updateBikePlayer(player) {
   p.onWall = false;
 
   if (p.y + p.height >= game.groundY) {
+    const landingVY = p.vy;
+    const landingAngle = Math.abs(p.bikeAngle);
     p.y = game.groundY - p.height;
     if (p.vy > 2.5 && Math.abs(p.bikeSpin) > Math.PI * 1.7) {
       game.save.keys += 2;
       setMessage(`${p.label} landed a stunt! +2 keys`, 130);
       saveProgress();
+    }
+    if (landingVY > 8.4 && landingAngle > 0.7 && p.invulnerableFrames <= 0) {
+      triggerRespawn(p, "trap");
+      return;
     }
     p.vy = 0;
     p.onGround = true;
@@ -1198,10 +1248,16 @@ function updateBikePlayer(player) {
 
     const comingFromTop = p.vy >= 0 && p.y + p.height - p.vy <= platform.y + 10;
     if (comingFromTop) {
+      const landingVY = p.vy;
+      const landingAngle = Math.abs(p.bikeAngle);
       if (!p.onGround && p.vy > 1.8 && Math.abs(p.bikeSpin) > Math.PI * 1.7) {
         game.save.keys += 2;
         setMessage(`${p.label} rooftop stunt! +2 keys`, 130);
         saveProgress();
+      }
+      if (landingVY > 8.2 && landingAngle > 0.68 && p.invulnerableFrames <= 0) {
+        triggerRespawn(p, "trap");
+        return;
       }
       p.y = platform.y - p.height;
       p.vy = 0;
@@ -1249,8 +1305,8 @@ function updateBikePlayer(player) {
     }
   }
 
-  const crashAngle = 1.62 + stability * 0.24;
-  const crashSpeed = 6.2 + stability * 0.7;
+  const crashAngle = 1.42 + stability * 0.2;
+  const crashSpeed = 5.4 + stability * 0.55;
   if (p.onGround && Math.abs(p.bikeAngle) > crashAngle && Math.abs(p.vx) > crashSpeed && p.invulnerableFrames <= 0) {
     triggerRespawn(p, "trap");
     return;
@@ -1360,14 +1416,15 @@ function updatePlayer(player) {
     p.vx += (p.rollBoost || 2.3) * p.facing;
   }
 
+  const wallGripBonus = p.wallGrip || 0;
   if (!p.onGround && p.onWall) {
-    p.wallClingFrames = Math.min(18, p.wallClingFrames + 1);
-    p.vy = Math.min(p.vy, 1.6);
+    p.wallClingFrames = Math.min(18 + wallGripBonus * 5, p.wallClingFrames + 1);
+    p.vy = Math.min(p.vy, 1.6 - wallGripBonus * 0.15);
     if ((movingLeft && p.wallDir === -1) || (movingRight && p.wallDir === 1)) {
-      p.vy = Math.min(p.vy, 0.8);
+      p.vy = Math.min(p.vy, 0.8 - wallGripBonus * 0.1);
     }
   } else if (p.wallClingFrames > 0) {
-    p.wallClingFrames -= 1;
+    p.wallClingFrames -= 1 + wallGripBonus * 0.25;
   }
 
   if (p.rolling) p.vx *= 1.04;
@@ -1395,7 +1452,7 @@ function updatePlayer(player) {
 
   if (!p.input.upHeld && p.vy < -2.5) p.vy *= p.jumpCutFactor;
 
-  p.vy += game.gravity * (p.wallClingFrames > 0 ? 0.84 : 1);
+  p.vy += game.gravity * (p.wallClingFrames > 0 ? 0.84 - wallGripBonus * 0.03 : 1);
   if (p.vy > p.maxFallSpeed) p.vy = p.maxFallSpeed;
 
   p.x += p.vx;
