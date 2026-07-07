@@ -267,19 +267,16 @@ function buildMotoChallengeCourse() {
     worldWidth: 2320,
     platforms: [
       { x: 0, y: 440, width: 420, height: 20 },
-      { x: 760, y: 380, width: 280, height: 20 },
-      { x: 1340, y: 430, width: 260, height: 20 },
-      { x: 1820, y: 360, width: 500, height: 20 },
+      { x: 1880, y: 360, width: 440, height: 20 },
     ],
     ramps: [
-      { x: 420, y1: 440, y2: 380, width: 340 },
-      { x: 1040, y1: 380, y2: 430, width: 300 },
-      { x: 1600, y1: 430, y2: 360, width: 220 },
+      { x: 420, y1: 440, y2: 350, width: 980 },
+      { x: 1400, y1: 350, y2: 360, width: 480 },
     ],
     hazards: [
-      { type: "spike", x: 920, y: 360, width: 40, height: 20 },
-      { type: "spike", x: 1470, y: 410, width: 40, height: 20 },
-      { type: "spike", x: 2010, y: 340, width: 40, height: 20 },
+      { type: "spike", x: 1260, y: 330, width: 40, height: 20 },
+      { type: "spike", x: 1690, y: 340, width: 40, height: 20 },
+      { type: "spike", x: 2060, y: 340, width: 40, height: 20 },
     ],
   };
 }
@@ -296,7 +293,7 @@ function beginMotoChallenge(triggerPlayer) {
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
-  game.checkpoints = [{ x: 760, active: false }, { x: 1360, active: false }, { x: 1940, active: false }];
+  game.checkpoints = [{ x: 840, active: false }, { x: 1460, active: false }, { x: 1980, active: false }];
   game.doors = [];
   game.clueMarkers = [];
   game.bikePortals = [];
