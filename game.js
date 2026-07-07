@@ -171,6 +171,11 @@ const game = {
   doors: [],
   clueMarkers: [],
   bikePortals: [],
+  motoChallenge: {
+    active: false,
+    finishX: 0,
+    startedFromLevel: 1,
+  },
   respawnX: 100,
   discoveredKeyIds: new Set(),
   currentLevel: 1,
@@ -254,6 +259,64 @@ function setupBikePortals(levelNumber) {
       used: false,
     },
   ];
+}
+
+function buildMotoChallengeCourse() {
+  return {
+    worldWidth: 2400,
+    platforms: [
+      { x: 120, y: 400, width: 240, height: 20 },
+      { x: 400, y: 370, width: 160, height: 20 },
+      { x: 610, y: 330, width: 150, height: 20 },
+      { x: 810, y: 280, width: 170, height: 20 },
+      { x: 1020, y: 230, width: 160, height: 20 },
+      { x: 1230, y: 260, width: 220, height: 20 },
+      { x: 1510, y: 310, width: 180, height: 20 },
+      { x: 1730, y: 350, width: 220, height: 20 },
+      { x: 1990, y: 320, width: 190, height: 20 },
+      { x: 2210, y: 280, width: 160, height: 20 },
+    ],
+    hazards: [
+      { type: "spike", x: 560, y: 420, width: 40, height: 20 },
+      { type: "spike", x: 980, y: 420, width: 40, height: 20 },
+      { type: "lowLaser", x: 1340, y: 244, width: 100, height: 14 },
+      { type: "spike", x: 1870, y: 420, width: 40, height: 20 },
+    ],
+  };
+}
+
+function beginMotoChallenge(triggerPlayer) {
+  const course = buildMotoChallengeCourse();
+  game.motoChallenge.active = true;
+  game.motoChallenge.finishX = course.worldWidth - 110;
+  game.motoChallenge.startedFromLevel = game.currentLevel;
+
+  game.worldWidth = course.worldWidth;
+  game.platforms = course.platforms;
+  game.hazards = course.hazards;
+  game.enemies = [];
+  game.keysInLevel = [];
+  game.checkpoints = [{ x: 780, active: false }, { x: 1580, active: false }];
+  game.doors = [];
+  game.clueMarkers = [];
+  game.bikePortals = [];
+  game.respawnX = 120;
+
+  for (const player of game.players) {
+    player.x = 120 + player.id * 36;
+    player.y = 280;
+    player.vx = 7.2;
+    player.vy = 0;
+    player.onBike = true;
+    player.bikeAngle = 0;
+    player.bikeAngularVelocity = 0;
+    player.bikeAirborne = false;
+    player.bikeSpin = 0;
+    player.input.upHeld = player.id === triggerPlayer.id;
+  }
+
+  game.cameraX = 0;
+  setMessage("Teleported to Moto Trial. Finish this track to clear the level!", 220);
 }
 
 function setupWorld(levelNumber = 1) {
@@ -891,6 +954,9 @@ function startGame() {
   game.paused = false;
   game.interactPressed = false;
   resetTouchInput();
+  game.motoChallenge.active = false;
+  game.motoChallenge.finishX = 0;
+  game.motoChallenge.startedFromLevel = selectedLevel;
   game.discoveredKeyIds = new Set();
   setupWorld(selectedLevel);
   game.running = true;
@@ -1010,6 +1076,11 @@ function applyDoorBlock(player, prevX) {
 }
 
 function activateBikeMode(player) {
+  if (!game.motoChallenge.active) {
+    beginMotoChallenge(player);
+    return;
+  }
+
   player.onBike = true;
   player.rolling = false;
   player.rollTimer = 0;
@@ -2065,12 +2136,16 @@ function drawHud(ctx) {
   const bikeActive = game.players.some((player) => player.onBike);
   const bikePortalRemaining = game.bikePortals.some((portal) => !portal.used);
   ctx.font = "700 14px Nunito";
-  if (bikeActive) {
+  if (game.motoChallenge.active) {
+    ctx.fillStyle = "#9df7ff";
+    ctx.fillText("Moto Trial: finish line clears this level instantly", 470, 56);
+    ctx.fillText("Controls: Up accelerate, Down brake, Left/Right tilt and flip", 470, 76);
+  } else if (bikeActive) {
     ctx.fillStyle = "#9df7ff";
     ctx.fillText("Bike mode: Up accelerate, Down brake, Left/Right tilt for flips", 470, 56);
   } else if (bikePortalRemaining) {
     ctx.fillStyle = "#ffd9a8";
-    ctx.fillText("Hit the glowing portal to switch to Moto bike controls", 470, 56);
+    ctx.fillText("Hit the glowing portal to teleport into the Moto Trial", 470, 56);
   }
 
   if (game.message) {
@@ -2174,6 +2249,15 @@ function update() {
   }
 
   const allDoorsSolved = game.doors.every((door) => door.solved);
+
+  if (game.motoChallenge.active && anchorPlayer.x >= game.motoChallenge.finishX) {
+    game.save.keys += 6;
+    game.missionNote.textContent = `Moto Trial cleared! Level ${game.currentLevel} completed.`;
+    finishRun();
+    requestAnimationFrame(update);
+    return;
+  }
+
   if (anchorPlayer.x >= game.worldWidth - 80) {
     if (allDoorsSolved) {
       finishRun();
