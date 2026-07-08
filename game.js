@@ -188,6 +188,8 @@ const game = {
   groundY: 440,
   platforms: [],
   ramps: [],
+  boostPads: [],
+  loopTheLoops: [],
   keysInLevel: [],
   hazards: [],
   enemies: [],
@@ -246,6 +248,8 @@ function createPlayer(index) {
     bikeAngularVelocity: 0,
     bikeAirborne: false,
     bikeSpin: 0,
+    boostCooldown: 0,
+    loopState: null,
     bikeAccelBonus: 0,
     bikeTopSpeedBonus: 0,
     bikeStability: 0,
@@ -345,6 +349,15 @@ function buildMotoChallengeCourse() {
       { x: 8500, y1: 336, y2: 286, width: 200 },
       { x: 8960, y1: 286, y2: 320, width: 80 },
     ],
+    boostPads: [
+      { x: 720, y: 348, width: 96, height: 10, power: 2.1, minSpeed: 8.6 },
+      { x: 2980, y: 332, width: 110, height: 10, power: 2.5, minSpeed: 9.3 },
+      { x: 7020, y: 334, width: 100, height: 10, power: 2, minSpeed: 8.8 },
+    ],
+    loopTheLoops: [
+      { id: "loop-1", cx: 3380, cy: 332, radius: 88, minSpeed: 8.8 },
+      { id: "loop-2", cx: 7140, cy: 336, radius: 84, minSpeed: 8.6 },
+    ],
     hazards: [
       { type: "spike", x: 760, y: 420, width: 40, height: 20 },
       { type: "spike", x: 980, y: 328, width: 40, height: 20 },
@@ -376,6 +389,8 @@ function beginMotoChallenge(triggerPlayer) {
   game.worldWidth = course.worldWidth;
   game.platforms = course.platforms;
   game.ramps = course.ramps;
+  game.boostPads = course.boostPads;
+  game.loopTheLoops = course.loopTheLoops;
   game.hazards = course.hazards;
   game.enemies = [];
   game.keysInLevel = [];
@@ -403,6 +418,8 @@ function beginMotoChallenge(triggerPlayer) {
     player.bikeAngularVelocity = 0;
     player.bikeAirborne = false;
     player.bikeSpin = 0;
+    player.boostCooldown = 0;
+    player.loopState = null;
     player.input.upHeld = player.id === triggerPlayer.id || player.id === 0;
   }
 
@@ -411,6 +428,9 @@ function beginMotoChallenge(triggerPlayer) {
 }
 
 function setupWorld(levelNumber = 1) {
+  game.boostPads = [];
+  game.loopTheLoops = [];
+
   const basePlatforms = [
     { x: 260, y: 390, width: 200, height: 22 },
     { x: 520, y: 345, width: 150, height: 20 },
@@ -1121,6 +1141,8 @@ function triggerRespawn(player, reason) {
   player.bikeAngularVelocity = 0;
   player.bikeAirborne = false;
   player.bikeSpin = 0;
+  player.boostCooldown = 0;
+  player.loopState = null;
   player.input.upPressed = false;
   player.invulnerableFrames = 75;
   game.combo = 0;
@@ -1212,6 +1234,97 @@ function updateBikePlayer(player) {
 
   const tiltInput = (p.input.right ? 1 : 0) - (p.input.left ? 1 : 0);
   const stability = p.bikeStability || 0;
+
+  if (p.boostCooldown > 0) p.boostCooldown -= 1;
+
+  if (!p.loopState) {
+    const bikeAnchorX = p.x + p.width * 0.55;
+    const wheelY = p.y + p.height;
+    for (const loop of game.loopTheLoops) {
+      const entryX = loop.cx - loop.radius;
+      if (Math.abs(bikeAnchorX - entryX) > 24) continue;
+      if (Math.abs(wheelY - loop.cy) > 24) continue;
+      if (p.vx < loop.minSpeed - 0.6) continue;
+
+      p.loopState = {
+        loop,
+        progress: Math.PI,
+      };
+      p.bikeSpin = 0;
+      break;
+    }
+  }
+
+  if (p.loopState) {
+    const loop = p.loopState.loop;
+    const currentSpeed = Math.max(4.8, Math.abs(p.vx));
+    const speedDelta = (throttle ? 0.22 : -0.06) + (brake ? -0.26 : 0);
+    const loopSpeed = Math.max(4.8, Math.min(bikeMaxSpeed + 2.8, currentSpeed + speedDelta));
+    const deltaAngle = loopSpeed / loop.radius;
+    p.loopState.progress += deltaAngle;
+
+    const loopAngle = p.loopState.progress;
+    const onTopHalf = Math.sin(loopAngle) < 0;
+    if (onTopHalf && loopSpeed < loop.minSpeed - 0.6) {
+      p.loopState = null;
+      p.vy = Math.max(p.vy, 3.5);
+      p.onGround = false;
+      p.bikeAirborne = true;
+    } else if (p.loopState) {
+      const tx = -Math.sin(loopAngle);
+      const ty = Math.cos(loopAngle);
+      const contactX = loop.cx + Math.cos(loopAngle) * loop.radius;
+      const contactY = loop.cy + Math.sin(loopAngle) * loop.radius;
+
+      p.x = contactX - p.width * 0.55;
+      p.y = contactY - p.height;
+      p.vx = tx * loopSpeed;
+      p.vy = ty * loopSpeed;
+      p.onGround = true;
+      p.bikeAirborne = false;
+      p.bikeAngle = Math.atan2(ty, tx);
+      p.bikeAngularVelocity *= 0.6;
+      p.bikeSpin += Math.abs(deltaAngle);
+
+      if (loopAngle >= Math.PI * 3) {
+        p.loopState = null;
+        p.x = loop.cx + loop.radius + 10 - p.width * 0.55;
+        p.y = loop.cy - p.height;
+        p.vx = Math.max(loopSpeed * 0.96, loop.minSpeed);
+        p.vy = -0.3;
+        p.bikeAngle = 0;
+        p.onGround = true;
+      }
+    }
+  }
+
+  if (p.loopState) {
+    for (const checkpoint of game.checkpoints) {
+      if (!checkpoint.active && p.x >= checkpoint.x) {
+        checkpoint.active = true;
+        game.respawnX = checkpoint.x + 30;
+        setMessage(`Checkpoint reached: ${checkpoint.x}m`);
+      }
+    }
+
+    const hitbox = playerHitbox(p);
+    for (const key of game.keysInLevel) {
+      if (key.collected) continue;
+      const keyHitbox = { x: key.x - 10, y: key.y - 10, width: 20, height: 20 };
+      if (!rectsOverlap(hitbox, keyHitbox)) continue;
+      key.collected = true;
+      if (!game.discoveredKeyIds.has(key.id)) {
+        game.discoveredKeyIds.add(key.id);
+        game.save.keys += 1;
+        game.score += 10;
+      }
+    }
+
+    p.x = Math.max(0, Math.min(game.worldWidth - p.width, p.x));
+    if (p.y > game.canvas.height + 240) triggerRespawn(p, "fall");
+    return;
+  }
+
   const throttleTorque = !p.onGround ? throttle * 0.012 : 0;
   const brakeTorque = !p.onGround ? brake * -0.011 : 0;
   p.bikeAngularVelocity += (tiltInput * (p.onGround ? 0.008 : 0.017) + throttleTorque + brakeTorque) * (1 - stability * 0.24);
@@ -1317,6 +1430,23 @@ function updateBikePlayer(player) {
     }
   }
 
+  if (p.onGround && p.boostCooldown <= 0) {
+    const wheelX = p.x + p.width * 0.55;
+    const wheelY = p.y + p.height;
+    for (const pad of game.boostPads) {
+      if (wheelX < pad.x || wheelX > pad.x + pad.width) continue;
+      if (Math.abs(wheelY - pad.y) > 16) continue;
+
+      const baseSpeed = Math.max(Math.abs(p.vx), pad.minSpeed || 8);
+      const direction = p.vx >= 0 ? 1 : -1;
+      p.vx = direction * (baseSpeed + pad.power);
+      p.vy = Math.min(p.vy, -0.5);
+      p.boostCooldown = 24;
+      setMessage(`${p.label} hit a boost pad!`, 60);
+      break;
+    }
+  }
+
   const crashAngle = 1.42 + stability * 0.2;
   const crashSpeed = 6.3 + stability * 0.58;
   if (p.onGround && Math.abs(p.bikeAngle) > crashAngle && Math.abs(p.vx) > crashSpeed && p.invulnerableFrames <= 0) {
@@ -1342,6 +1472,46 @@ function updateBikePlayer(player) {
     if (portal.used) continue;
     if (!rectsOverlap(hitbox, portal)) continue;
     portal.used = true;
+  }
+
+  for (const pad of game.boostPads) {
+    const padGradient = ctx.createLinearGradient(pad.x, pad.y - pad.height, pad.x, pad.y + 2);
+    padGradient.addColorStop(0, "#ffd96b");
+    padGradient.addColorStop(1, "#ff8d2f");
+    ctx.fillStyle = padGradient;
+    ctx.fillRect(pad.x, pad.y - pad.height, pad.width, pad.height);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    for (let x = pad.x + 8; x <= pad.x + pad.width - 10; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, pad.y - pad.height + 2);
+      ctx.lineTo(x + 8, pad.y - pad.height / 2);
+      ctx.lineTo(x, pad.y - 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  for (const loop of game.loopTheLoops) {
+    ctx.strokeStyle = "#c12e2e";
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#f7fbff";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([12, 8]);
+    ctx.strokeStyle = "#d73636";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius - 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   for (const key of game.keysInLevel) {
@@ -2396,6 +2566,7 @@ function drawHud(ctx) {
     ctx.fillStyle = "#9df7ff";
     ctx.fillText("Moto Trial: finish line clears this level instantly", 470, 56);
     ctx.fillText("Controls: Up accelerate, Down brake, Left/Right tilt and flip", 470, 76);
+    ctx.fillText("Hit orange boost pads and keep speed through loop-the-loops", 470, 96);
   } else if (bikeActive) {
     ctx.fillStyle = "#9df7ff";
     ctx.fillText("Bike mode: Up accelerate, Down brake, Left/Right tilt for flips", 470, 56);
