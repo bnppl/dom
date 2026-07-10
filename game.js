@@ -1,7 +1,7 @@
 const STORAGE_KEY = "shadowClubRunnerSave";
 const TOTAL_LEVELS = 45;
 const PREVIOUS_TOTAL_LEVELS = 35;
-const TOUCH_ACTIONS = ["left", "right", "jump", "roll", "interact", "pause"];
+const TOUCH_ACTIONS = ["left", "right", "jumal gam ep", "roll", "interact", "pause"];
 
 const CONTROL_SCHEMES = [
   { label: "P1", left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown" },
@@ -207,6 +207,8 @@ const game = {
   currentLevel: 1,
   totalLevels: TOTAL_LEVELS,
   rushTimer: 0,
+  paceMultiplier: 1,
+  paceTier: 0,
 };
 
 const touchPointers = new Map();
@@ -309,73 +311,57 @@ function setupBikePortals(levelNumber) {
 
 function buildMotoChallengeCourse() {
   return {
-    worldWidth: 9220,
+    worldWidth: 9800,
     platforms: [
-      { x: 0, y: 440, width: 420, height: 20 },
-      { x: 860, y: 348, width: 170, height: 20 },
-      { x: 1360, y: 420, width: 260, height: 20 },
-      { x: 1880, y: 320, width: 230, height: 20 },
-      { x: 2470, y: 392, width: 220, height: 20 },
-      { x: 3080, y: 332, width: 420, height: 20 },
-      { x: 3650, y: 286, width: 220, height: 20 },
-      { x: 4170, y: 402, width: 180, height: 20 },
-      { x: 4660, y: 328, width: 240, height: 20 },
-      { x: 5290, y: 376, width: 210, height: 20 },
-      { x: 5750, y: 300, width: 230, height: 20 },
-      { x: 6310, y: 354, width: 210, height: 20 },
-      { x: 6760, y: 286, width: 220, height: 20 },
-      { x: 7260, y: 334, width: 240, height: 20 },
-      { x: 7770, y: 268, width: 220, height: 20 },
-      { x: 8240, y: 336, width: 260, height: 20 },
-      { x: 8700, y: 286, width: 260, height: 20 },
-      { x: 9040, y: 320, width: 240, height: 20 },
+      { x: 0, y: 440, width: 520, height: 20 },
+      { x: 1120, y: 356, width: 220, height: 20 },
+      { x: 1820, y: 420, width: 240, height: 20 },
+      { x: 2440, y: 332, width: 240, height: 20 },
+      { x: 3180, y: 376, width: 220, height: 20 },
+      { x: 3780, y: 332, width: 460, height: 20 },
+      { x: 4500, y: 408, width: 240, height: 20 },
+      { x: 5180, y: 322, width: 260, height: 20 },
+      { x: 5880, y: 372, width: 230, height: 20 },
+      { x: 6520, y: 296, width: 220, height: 20 },
+      { x: 7140, y: 334, width: 500, height: 20 },
+      { x: 7920, y: 282, width: 260, height: 20 },
+      { x: 8500, y: 342, width: 280, height: 20 },
+      { x: 9140, y: 304, width: 280, height: 20 },
+      { x: 9560, y: 324, width: 300, height: 20 },
     ],
     ramps: [
-      { x: 420, y1: 440, y2: 348, width: 440 },
-      { x: 1030, y1: 348, y2: 420, width: 330 },
-      { x: 1620, y1: 420, y2: 320, width: 260 },
-      { x: 2110, y1: 320, y2: 392, width: 360 },
-      { x: 2690, y1: 392, y2: 332, width: 390 },
-      { x: 3500, y1: 332, y2: 286, width: 150 },
-      { x: 3870, y1: 286, y2: 402, width: 300 },
-      { x: 4350, y1: 402, y2: 328, width: 310 },
-      { x: 4900, y1: 328, y2: 376, width: 390 },
-      { x: 5500, y1: 376, y2: 300, width: 250 },
-      { x: 5980, y1: 300, y2: 354, width: 330 },
-      { x: 6520, y1: 354, y2: 286, width: 240 },
-      { x: 6980, y1: 286, y2: 334, width: 280 },
-      { x: 7500, y1: 334, y2: 268, width: 270 },
-      { x: 7990, y1: 268, y2: 336, width: 250 },
-      { x: 8500, y1: 336, y2: 286, width: 200 },
-      { x: 8960, y1: 286, y2: 320, width: 80 },
+      { x: 520, y1: 440, y2: 356, width: 600 },
+      { x: 1340, y1: 356, y2: 420, width: 480 },
+      { x: 2060, y1: 420, y2: 332, width: 380 },
+      { x: 2680, y1: 332, y2: 376, width: 500 },
+      { x: 3400, y1: 376, y2: 332, width: 380 },
+      { x: 4240, y1: 332, y2: 408, width: 260 },
+      { x: 4740, y1: 408, y2: 322, width: 440 },
+      { x: 5440, y1: 322, y2: 372, width: 440 },
+      { x: 6110, y1: 372, y2: 296, width: 410 },
+      { x: 6740, y1: 296, y2: 334, width: 400 },
+      { x: 7640, y1: 334, y2: 282, width: 280 },
+      { x: 8180, y1: 282, y2: 342, width: 320 },
+      { x: 8780, y1: 342, y2: 304, width: 360 },
+      { x: 9420, y1: 304, y2: 324, width: 140 },
     ],
     boostPads: [
-      { x: 720, y: 348, width: 96, height: 10, power: 2.1, minSpeed: 8.6 },
-      { x: 2980, y: 332, width: 110, height: 10, power: 2.5, minSpeed: 9.3 },
-      { x: 7020, y: 334, width: 100, height: 10, power: 2, minSpeed: 8.8 },
+      { x: 980, y: 356, width: 110, height: 10, power: 2.2, minSpeed: 8.7 },
+      { x: 3640, y: 332, width: 120, height: 10, power: 2.6, minSpeed: 9.4 },
+      { x: 6960, y: 334, width: 116, height: 10, power: 2.4, minSpeed: 9.1 },
+      { x: 9340, y: 304, width: 90, height: 10, power: 2.2, minSpeed: 8.8 },
     ],
     loopTheLoops: [
-      { id: "loop-1", cx: 3380, cy: 332, radius: 88, minSpeed: 8.8 },
-      { id: "loop-2", cx: 7140, cy: 336, radius: 84, minSpeed: 8.6 },
+      { id: "loop-1", cx: 3980, cy: 332, radius: 90, minSpeed: 8.9 },
+      { id: "loop-2", cx: 7420, cy: 334, radius: 86, minSpeed: 8.8 },
     ],
     hazards: [
-      { type: "spike", x: 760, y: 420, width: 40, height: 20 },
-      { type: "spike", x: 980, y: 328, width: 40, height: 20 },
-      { type: "spike", x: 1460, y: 400, width: 40, height: 20 },
-      { type: "spike", x: 1970, y: 300, width: 40, height: 20 },
-      { type: "spike", x: 2590, y: 372, width: 40, height: 20 },
-      { type: "spike", x: 3320, y: 312, width: 40, height: 20 },
-      { type: "spike", x: 3730, y: 266, width: 40, height: 20 },
-      { type: "spike", x: 4260, y: 382, width: 40, height: 20 },
-      { type: "spike", x: 4750, y: 308, width: 40, height: 20 },
-      { type: "spike", x: 5360, y: 356, width: 40, height: 20 },
-      { type: "spike", x: 5850, y: 280, width: 40, height: 20 },
-      { type: "spike", x: 6410, y: 334, width: 40, height: 20 },
-      { type: "spike", x: 6850, y: 266, width: 40, height: 20 },
-      { type: "spike", x: 7350, y: 314, width: 40, height: 20 },
-      { type: "spike", x: 7860, y: 248, width: 40, height: 20 },
-      { type: "spike", x: 8330, y: 316, width: 40, height: 20 },
-      { type: "spike", x: 8810, y: 266, width: 40, height: 20 },
+      { type: "spike", x: 1700, y: 400, width: 40, height: 20 },
+      { type: "spike", x: 2920, y: 356, width: 40, height: 20 },
+      { type: "spike", x: 4660, y: 388, width: 40, height: 20 },
+      { type: "spike", x: 6060, y: 352, width: 40, height: 20 },
+      { type: "spike", x: 8240, y: 322, width: 40, height: 20 },
+      { type: "spike", x: 9100, y: 284, width: 40, height: 20 },
     ],
   };
 }
@@ -395,13 +381,13 @@ function beginMotoChallenge(triggerPlayer) {
   game.enemies = [];
   game.keysInLevel = [];
   game.checkpoints = [
-    { x: 1120, active: false },
-    { x: 2360, active: false },
-    { x: 3580, active: false },
-    { x: 4860, active: false },
-    { x: 6140, active: false },
-    { x: 7420, active: false },
-    { x: 8580, active: false },
+    { x: 1280, active: false },
+    { x: 2760, active: false },
+    { x: 4260, active: false },
+    { x: 5660, active: false },
+    { x: 7080, active: false },
+    { x: 8420, active: false },
+    { x: 9340, active: false },
   ];
   game.doors = [];
   game.clueMarkers = [];
@@ -424,7 +410,7 @@ function beginMotoChallenge(triggerPlayer) {
   }
 
   game.cameraX = 0;
-  setMessage("Teleported to Moto Trial X. Longer track, tougher landings, bigger jumps.", 220);
+  setMessage("Teleported to Moto Trial X. Flow track online: boosts, loops, and long rhythm sections.", 220);
 }
 
 function setupWorld(levelNumber = 1) {
@@ -1063,6 +1049,8 @@ function startGame() {
   game.combo = 0;
   game.comboTimer = 0;
   game.rushTimer = 0;
+  game.paceMultiplier = 1;
+  game.paceTier = 0;
   game.autosaveTick = 0;
   game.respawnX = 100;
   game.paused = false;
@@ -1160,17 +1148,19 @@ function triggerRespawn(player, reason) {
 }
 
 function updateEnemies() {
+  const pace = Math.min(1.4, Math.max(1, game.paceMultiplier || 1));
+
   for (const enemy of game.enemies) {
     if (!enemy.active) continue;
 
-    enemy.x += enemy.vx;
+    enemy.x += enemy.vx * pace;
     if (enemy.x < enemy.minX || enemy.x + enemy.width > enemy.maxX) {
       enemy.vx *= -1;
-      enemy.x += enemy.vx;
+      enemy.x += enemy.vx * pace;
     }
 
     if (enemy.type === "drone") {
-      enemy.y += Math.sin((game.elapsedFrames + enemy.x) * 0.02) * 0.35;
+      enemy.y += Math.sin((game.elapsedFrames + enemy.x) * 0.022) * (0.35 + (pace - 1) * 0.2);
     }
   }
 }
@@ -1213,12 +1203,13 @@ function updateBikePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
+  const pace = Math.min(1.4, Math.max(1, game.paceMultiplier || 1));
   const throttle = p.input.upHeld ? 1 : 0;
   const brake = p.input.down ? 1 : 0;
   const bikeAccel = 0.34 + (p.bikeAccelBonus || 0) * 0.9;
-  const bikeMaxSpeed = p.maxRunSpeed + 7.4 + (p.bikeTopSpeedBonus || 0);
+  const bikeMaxSpeed = (p.maxRunSpeed + 7.8 + (p.bikeTopSpeedBonus || 0)) * (1 + (pace - 1) * 0.9);
 
-  if (throttle) p.vx += bikeAccel;
+  if (throttle) p.vx += bikeAccel * pace;
   if (brake) {
     p.vx *= 0.91;
     if (p.vx > 0.35) p.vx -= 0.28;
@@ -1554,6 +1545,7 @@ function updatePlayer(player) {
   const p = player;
   const prevX = p.x;
   const prevY = p.y;
+  const pace = Math.min(1.35, Math.max(1, game.paceMultiplier || 1));
   const rushActive = game.rushTimer > 0;
 
   if (p.onBike) {
@@ -1579,8 +1571,8 @@ function updatePlayer(player) {
 
   const movingLeft = p.input.left && !p.input.right;
   const movingRight = p.input.right && !p.input.left;
-  const accel = (p.onGround ? p.accelGround : p.accelAir) * (rushActive ? 1.12 : 1);
-  const maxSpeed = p.maxRunSpeed * (rushActive ? 1.07 : 1);
+  const accel = (p.onGround ? p.accelGround : p.accelAir) * pace * (rushActive ? 1.18 : 1);
+  const maxSpeed = p.maxRunSpeed * (1 + (pace - 1) * 0.95) * (rushActive ? 1.1 : 1);
 
   if (movingLeft) {
     p.vx -= accel;
@@ -1609,7 +1601,7 @@ function updatePlayer(player) {
     p.wallClingFrames -= 1 + wallGripBonus * 0.25;
   }
 
-  if (p.rolling) p.vx *= 1.04;
+  if (p.rolling) p.vx *= 1.06;
 
   if (p.vx > maxSpeed) p.vx = maxSpeed;
   if (p.vx < -maxSpeed) p.vx = -maxSpeed;
@@ -1717,7 +1709,7 @@ function updatePlayer(player) {
         setMessage("Combo bonus: +1 key!");
       }
 
-      game.rushTimer = Math.max(game.rushTimer, game.combo >= 3 ? 120 : 75);
+      game.rushTimer = Math.max(game.rushTimer, game.combo >= 3 ? 160 : 100);
       if (game.combo >= 3 && game.combo % 3 === 0) {
         setMessage("Momentum Rush! Keep moving.");
       }
@@ -2024,92 +2016,104 @@ function drawStickman(ctx, player, color1, color2 = color1) {
 function drawBikeRider(ctx, player, color1, color2 = color1) {
   const cx = player.x + player.width / 2;
   const wheelY = player.y + player.height - 8;
-  const wheelGap = 27;
+  const wheelGap = 28;
 
   ctx.save();
-  ctx.translate(cx, wheelY - 7);
+  ctx.translate(cx, wheelY - 6);
   ctx.rotate(player.bikeAngle);
 
-  ctx.fillStyle = "#151c24";
+  ctx.fillStyle = "#121923";
   ctx.beginPath();
-  ctx.arc(-wheelGap, 8, 12, 0, Math.PI * 2);
-  ctx.arc(wheelGap, 8, 12, 0, Math.PI * 2);
+  ctx.arc(-wheelGap, 8, 12.5, 0, Math.PI * 2);
+  ctx.arc(wheelGap, 8, 12.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "#7b8fa4";
-  ctx.lineWidth = 2.3;
+  ctx.strokeStyle = "#90a4bc";
+  ctx.lineWidth = 2.1;
   ctx.beginPath();
-  ctx.arc(-wheelGap, 8, 7, 0, Math.PI * 2);
-  ctx.arc(wheelGap, 8, 7, 0, Math.PI * 2);
+  ctx.arc(-wheelGap, 8, 6.8, 0, Math.PI * 2);
+  ctx.arc(wheelGap, 8, 6.8, 0, Math.PI * 2);
   ctx.stroke();
 
   const bikeOrange = ctx.createLinearGradient(-30, -8, 24, 10);
-  bikeOrange.addColorStop(0, "#ff7b29");
-  bikeOrange.addColorStop(1, "#d64b10");
+  bikeOrange.addColorStop(0, "#ff8f2f");
+  bikeOrange.addColorStop(1, "#d84f14");
   ctx.strokeStyle = bikeOrange;
-  ctx.lineWidth = 4.2;
+  ctx.lineWidth = 4.4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
   ctx.beginPath();
   ctx.moveTo(-wheelGap, 8);
-  ctx.lineTo(-2, -8);
+  ctx.lineTo(-4, -9);
   ctx.lineTo(wheelGap, 8);
-  ctx.lineTo(9, 8);
-  ctx.lineTo(-2, -8);
+  ctx.lineTo(11, 8);
+  ctx.lineTo(-4, -9);
   ctx.stroke();
 
-  ctx.strokeStyle = "#d9dfeb";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#dbe2ec";
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.moveTo(9, -2);
-  ctx.lineTo(18, -9);
+  ctx.moveTo(10, -2);
+  ctx.lineTo(21, -10);
   ctx.stroke();
 
-  ctx.strokeStyle = "#4e5b69";
+  ctx.strokeStyle = "#586877";
   ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.moveTo(-8, 0);
-  ctx.lineTo(-14, 8);
-  ctx.moveTo(-5, -2);
-  ctx.lineTo(-11, 6);
+  ctx.moveTo(-10, -1);
+  ctx.lineTo(-16, 8);
+  ctx.moveTo(-7, -3);
+  ctx.lineTo(-12, 6);
   ctx.stroke();
 
-  const riderBody = ctx.createLinearGradient(-6, -26, 7, -2);
+  const riderBody = ctx.createLinearGradient(-10, -25, 8, -4);
   riderBody.addColorStop(0, color1);
   riderBody.addColorStop(1, color2);
   ctx.strokeStyle = riderBody;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4.2;
   ctx.beginPath();
-  ctx.moveTo(-2, -15);
-  ctx.lineTo(-2, -6);
-  ctx.lineTo(-10, 1);
+  ctx.moveTo(-6, -18);
+  ctx.lineTo(-3, -7);
+  ctx.lineTo(-13, 0);
   ctx.stroke();
 
-  ctx.strokeStyle = "#202d3a";
+  ctx.strokeStyle = "#20303e";
   ctx.lineWidth = 3.4;
   ctx.beginPath();
-  ctx.moveTo(-1, -14);
-  ctx.lineTo(11, -1);
-  ctx.lineTo(wheelGap - 2, 8);
+  ctx.moveTo(-4, -16);
+  ctx.lineTo(11, -2);
+  ctx.lineTo(wheelGap - 3, 8);
   ctx.stroke();
 
-  ctx.fillStyle = "#ff6a1a";
+  ctx.fillStyle = "#ff6f1e";
   ctx.beginPath();
-  ctx.arc(-1, -25, 9, 0, Math.PI * 2);
+  ctx.arc(-9, -24, 9.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#1f84d0";
+  ctx.fillStyle = "#1c2f43";
   ctx.beginPath();
-  ctx.moveTo(2, -28);
-  ctx.lineTo(10, -24);
-  ctx.lineTo(5, -20);
-  ctx.lineTo(0, -21);
+  ctx.moveTo(-10, -27);
+  ctx.lineTo(-1, -24);
+  ctx.lineTo(-4, -20);
+  ctx.lineTo(-11, -20);
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = "rgba(180, 255, 140, 0.95)";
-  ctx.fillRect(-5, -17, 7, 2.6);
+  const visorGlow = ctx.createLinearGradient(-13, -25, -2, -20);
+  visorGlow.addColorStop(0, "#7dd6ff");
+  visorGlow.addColorStop(1, "#d5f4ff");
+  ctx.fillStyle = visorGlow;
+  ctx.beginPath();
+  ctx.moveTo(-13, -25);
+  ctx.lineTo(-4, -23);
+  ctx.lineTo(-5, -20);
+  ctx.lineTo(-13, -21);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#7cff6d";
+  ctx.fillRect(-12, -19, 9, 2.2);
 
   ctx.restore();
 }
@@ -2153,6 +2157,68 @@ function drawBackground(ctx) {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, game.canvas.width, game.canvas.height);
 
+  if (motoScene) {
+    ctx.save();
+    ctx.translate(-game.cameraX * 0.14, 0);
+
+    ctx.fillStyle = "rgba(173, 207, 227, 0.75)";
+    for (let i = 0; i < 12; i += 1) {
+      const x = i * 260 - 60;
+      const h = 160 + (i % 3) * 35;
+      ctx.beginPath();
+      ctx.moveTo(x - 40, game.groundY + 10);
+      ctx.lineTo(x + 90, game.groundY - h);
+      ctx.lineTo(x + 220, game.groundY + 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    for (let i = 0; i < 12; i += 1) {
+      const x = i * 260 - 60;
+      const h = 160 + (i % 3) * 35;
+      ctx.strokeStyle = "rgba(232, 244, 255, 0.75)";
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(x + 48, game.groundY - h * 0.47);
+      ctx.lineTo(x + 90, game.groundY - h);
+      ctx.lineTo(x + 132, game.groundY - h * 0.47);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(-game.cameraX * 0.22, 0);
+    for (let i = 0; i < 14; i += 1) {
+      const x = i * 300 + 20;
+      const baseY = game.groundY - 36 - (i % 2) * 14;
+      const houseW = 126;
+      const houseH = 62;
+
+      ctx.fillStyle = i % 3 === 0 ? "#d7ced0" : i % 3 === 1 ? "#c7ccd0" : "#d9d4cb";
+      ctx.fillRect(x, baseY - houseH, houseW, houseH);
+
+      ctx.fillStyle = "#c8dff1";
+      ctx.fillRect(x + 12, baseY - houseH + 16, 22, 22);
+      ctx.fillRect(x + 48, baseY - houseH + 20, 18, 18);
+
+      ctx.fillStyle = "#b3c9da";
+      ctx.beginPath();
+      ctx.moveTo(x - 10, baseY - houseH);
+      ctx.lineTo(x + houseW / 2, baseY - houseH - 46);
+      ctx.lineTo(x + houseW + 10, baseY - houseH);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#e9f6ff";
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(x - 2, baseY - houseH + 3);
+      ctx.lineTo(x + houseW + 2, baseY - houseH + 3);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   if (!motoScene) {
     const moonX = game.canvas.width * 0.82;
     const moonY = game.canvas.height * 0.18;
@@ -2188,50 +2254,60 @@ function drawBackground(ctx) {
 
   ctx.save();
   ctx.translate(-game.cameraX * 0.1, 0);
-  ctx.fillStyle = "rgba(44, 70, 99, 0.45)";
+  ctx.fillStyle = motoScene ? "rgba(116, 156, 182, 0.38)" : "rgba(44, 70, 99, 0.45)";
   for (let i = 0; i < 14; i += 1) {
     const x = i * 220;
     const towerHeight = 110 + (i % 4) * 18;
     ctx.fillRect(x, game.groundY - towerHeight - 36, 82, towerHeight);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.fillStyle = motoScene ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.08)";
     ctx.fillRect(x + 14, game.groundY - towerHeight - 22, 8, towerHeight - 20);
-    ctx.fillStyle = "rgba(44, 70, 99, 0.45)";
+    ctx.fillStyle = motoScene ? "rgba(116, 156, 182, 0.38)" : "rgba(44, 70, 99, 0.45)";
   }
   ctx.restore();
 
   ctx.save();
   ctx.translate(-game.cameraX * 0.24, 0);
-  ctx.fillStyle = "rgba(43, 91, 133, 0.42)";
+  ctx.fillStyle = motoScene ? "rgba(160, 197, 218, 0.45)" : "rgba(43, 91, 133, 0.42)";
   for (let i = 0; i < 22; i += 1) {
     const x = i * 340;
     const h = 90 + (i % 4) * 25;
     ctx.fillRect(x, game.groundY - h - 20, 220, h);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.fillStyle = motoScene ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.06)";
     ctx.fillRect(x + 36, game.groundY - h + 4, 10, h - 24);
-    ctx.fillStyle = "rgba(43, 91, 133, 0.42)";
+    ctx.fillStyle = motoScene ? "rgba(160, 197, 218, 0.45)" : "rgba(43, 91, 133, 0.42)";
   }
   ctx.restore();
 
   ctx.save();
   ctx.translate(-game.cameraX * 0.18, 0);
-  ctx.fillStyle = "rgba(23, 40, 58, 0.8)";
+  ctx.fillStyle = motoScene ? "rgba(141, 171, 190, 0.62)" : "rgba(23, 40, 58, 0.8)";
   for (let i = 0; i < 18; i += 1) {
     const x = i * 420 + 40;
     const roofY = game.groundY - 30 - (i % 3) * 18;
     ctx.fillRect(x, roofY, 260, 8);
     ctx.fillRect(x + 24, roofY - 52, 14, 52);
     ctx.fillRect(x + 180, roofY - 34, 12, 34);
-    ctx.fillStyle = i % 2 === 0 ? "rgba(255, 190, 61, 0.22)" : "rgba(74, 215, 209, 0.18)";
+    ctx.fillStyle = motoScene
+      ? "rgba(233, 247, 255, 0.34)"
+      : i % 2 === 0
+        ? "rgba(255, 190, 61, 0.22)"
+        : "rgba(74, 215, 209, 0.18)";
     ctx.fillRect(x + 72, roofY - 26, 26, 14);
     ctx.fillRect(x + 118, roofY - 26, 26, 14);
-    ctx.fillStyle = "rgba(23, 40, 58, 0.8)";
+    ctx.fillStyle = motoScene ? "rgba(141, 171, 190, 0.62)" : "rgba(23, 40, 58, 0.8)";
   }
   ctx.restore();
 
   const mist = ctx.createLinearGradient(0, game.groundY - 140, 0, game.canvas.height);
-  mist.addColorStop(0, "rgba(125, 178, 226, 0)");
-  mist.addColorStop(0.5, "rgba(125, 178, 226, 0.12)");
-  mist.addColorStop(1, "rgba(11, 20, 35, 0.28)");
+  if (motoScene) {
+    mist.addColorStop(0, "rgba(210, 234, 248, 0)");
+    mist.addColorStop(0.5, "rgba(210, 234, 248, 0.2)");
+    mist.addColorStop(1, "rgba(112, 154, 182, 0.22)");
+  } else {
+    mist.addColorStop(0, "rgba(125, 178, 226, 0)");
+    mist.addColorStop(0.5, "rgba(125, 178, 226, 0.12)");
+    mist.addColorStop(1, "rgba(11, 20, 35, 0.28)");
+  }
   ctx.fillStyle = mist;
   ctx.fillRect(0, game.groundY - 140, game.canvas.width, game.canvas.height - (game.groundY - 140));
 }
@@ -2271,18 +2347,30 @@ function drawWorld(ctx) {
     }
     ctx.fillStyle = platformShade;
     ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-    ctx.fillStyle = motoScene ? "#f7f8fb" : "rgba(255, 255, 255, 0.25)";
+    ctx.fillStyle = motoScene ? "#fcfdff" : "rgba(255, 255, 255, 0.25)";
     ctx.fillRect(platform.x, platform.y, platform.width, motoScene ? 4 : 3);
     ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
     ctx.fillRect(platform.x, platform.y + platform.height - 3, platform.width, 3);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
     ctx.strokeRect(platform.x + 1, platform.y + 1, platform.width - 2, platform.height - 2);
     if (motoScene) {
-      ctx.strokeStyle = "#c12e2e";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#b91f26";
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.moveTo(platform.x, platform.y + 4);
-      ctx.lineTo(platform.x + platform.width, platform.y + 4);
+      ctx.moveTo(platform.x, platform.y + 3.5);
+      ctx.lineTo(platform.x + platform.width, platform.y + 3.5);
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(platform.x, platform.y + 6.3);
+      ctx.lineTo(platform.x + platform.width, platform.y + 6.3);
+      ctx.stroke();
+      ctx.strokeStyle = "#b91f26";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(platform.x, platform.y + 8.9);
+      ctx.lineTo(platform.x + platform.width, platform.y + 8.9);
       ctx.stroke();
     }
   }
@@ -2305,19 +2393,25 @@ function drawWorld(ctx) {
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = motoScene ? "#c12e2e" : "rgba(255, 255, 255, 0.26)";
-    ctx.lineWidth = motoScene ? 3 : 2;
+    ctx.strokeStyle = motoScene ? "#b91f26" : "rgba(255, 255, 255, 0.26)";
+    ctx.lineWidth = motoScene ? 2.3 : 2;
     ctx.beginPath();
-    ctx.moveTo(ramp.x, ramp.y1 + 1);
-    ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 1);
+    ctx.moveTo(ramp.x, ramp.y1 + 2.5);
+    ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 2.5);
     ctx.stroke();
 
     if (motoScene) {
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(ramp.x, ramp.y1 + 6);
-      ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 6);
+      ctx.moveTo(ramp.x, ramp.y1 + 5.4);
+      ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 5.4);
+      ctx.stroke();
+      ctx.strokeStyle = "#b91f26";
+      ctx.lineWidth = 2.3;
+      ctx.beginPath();
+      ctx.moveTo(ramp.x, ramp.y1 + 8.3);
+      ctx.lineTo(ramp.x + ramp.width, ramp.y2 + 8.3);
       ctx.stroke();
     }
   }
@@ -2553,7 +2647,7 @@ function drawHud(ctx) {
   ctx.fillText(`Distance: ${Math.floor(game.distance)}m`, 24, 88);
   ctx.fillText(`Team: ${game.players.length}  Combo: x${game.combo}`, 24, 112);
   ctx.fillText(`Doors solved: ${solvedDoors}/${game.doors.length}`, 24, 136);
-  ctx.fillText(`Level: ${game.currentLevel}/${game.totalLevels}`, 24, 160);
+  ctx.fillText(`Level: ${game.currentLevel}/${game.totalLevels}  Pace: x${game.paceMultiplier.toFixed(2)}`, 24, 160);
 
   ctx.fillStyle = "#f8be3d";
   ctx.font = "700 16px Nunito";
@@ -2624,6 +2718,17 @@ function update() {
       clue.cooldownFrames -= 1;
     }
   }
+
+  const distancePace = 1 + Math.min(0.22, game.distance / 9000);
+  const comboPace = Math.min(0.08, game.combo * 0.012);
+  const rushPace = game.rushTimer > 0 ? 0.08 : 0;
+  game.paceMultiplier = Math.min(1.38, distancePace + comboPace + rushPace);
+
+  const paceTier = game.paceMultiplier >= 1.32 ? 3 : game.paceMultiplier >= 1.22 ? 2 : game.paceMultiplier >= 1.12 ? 1 : 0;
+  if (paceTier > game.paceTier && paceTier > 0) {
+    setMessage("Speed up! Keep the momentum high.", 70);
+  }
+  game.paceTier = paceTier;
 
   updateEnemies();
 
