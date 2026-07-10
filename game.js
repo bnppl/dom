@@ -205,6 +205,14 @@ const game = {
     finishX: 0,
     startedFromLevel: 1,
   },
+  portalChallenge: {
+    active: false,
+    type: null,
+    name: "",
+    finishX: 0,
+    startedFromLevel: 1,
+    rewardKeys: 0,
+  },
   respawnX: 100,
   discoveredKeyIds: new Set(),
   currentLevel: 1,
@@ -223,6 +231,14 @@ const touchPointers = new Map();
 
 game.ctx = game.canvas.getContext("2d");
 game.musicEnabled = game.save.musicEnabled !== false;
+
+function isMotoChallengeActive() {
+  return game.portalChallenge.active && game.portalChallenge.type === "moto";
+}
+
+function isPortalChallengeActive() {
+  return game.portalChallenge.active;
+}
 
 function updateMusicButtonLabel() {
   if (!game.musicToggleBtn) return;
@@ -415,8 +431,8 @@ function applyPlayerUpgrades(player) {
 }
 
 function setupBikePortals(levelNumber) {
-  const baseX = Math.floor(1500 + levelNumber * 180);
-  const portalX = Math.max(900, Math.min(game.worldWidth - 260, baseX));
+  const baseX = Math.floor(1380 + levelNumber * 150);
+  const portalX = Math.max(880, Math.min(game.worldWidth - 1280, baseX));
   game.bikePortals = [
     {
       id: `bike-${levelNumber}`,
@@ -425,8 +441,161 @@ function setupBikePortals(levelNumber) {
       width: 48,
       height: 120,
       used: false,
+      type: "moto",
+      label: "Moto Trial",
+      colors: ["rgba(255, 198, 122, 0.95)", "rgba(255, 113, 61, 0.95)"],
+    },
+    {
+      id: `keys-${levelNumber}`,
+      x: portalX + 220,
+      y: game.groundY - 128,
+      width: 48,
+      height: 120,
+      used: false,
+      type: "keys",
+      label: "Key Dash",
+      colors: ["rgba(255, 239, 120, 0.95)", "rgba(255, 178, 44, 0.95)"],
+    },
+    {
+      id: `laser-${levelNumber}`,
+      x: portalX + 440,
+      y: game.groundY - 128,
+      width: 48,
+      height: 120,
+      used: false,
+      type: "laser",
+      label: "Laser Run",
+      colors: ["rgba(130, 240, 255, 0.95)", "rgba(63, 164, 255, 0.95)"],
     },
   ];
+}
+
+function buildKeyDashCourse() {
+  return {
+    worldWidth: 4280,
+    platforms: [
+      { x: 0, y: 440, width: 520, height: 20 },
+      { x: 820, y: 360, width: 180, height: 20 },
+      { x: 1320, y: 280, width: 180, height: 20 },
+      { x: 1860, y: 360, width: 180, height: 20 },
+      { x: 2360, y: 260, width: 200, height: 20 },
+      { x: 2920, y: 340, width: 220, height: 20 },
+      { x: 3500, y: 250, width: 220, height: 20 },
+      { x: 3940, y: 320, width: 260, height: 20 },
+    ],
+    ramps: [
+      { x: 520, y1: 440, y2: 360, width: 300 },
+      { x: 1000, y1: 360, y2: 280, width: 320 },
+      { x: 1500, y1: 280, y2: 360, width: 360 },
+      { x: 2040, y1: 360, y2: 260, width: 320 },
+      { x: 2560, y1: 260, y2: 340, width: 360 },
+      { x: 3140, y1: 340, y2: 250, width: 360 },
+      { x: 3720, y1: 250, y2: 320, width: 220 },
+    ],
+    keysInLevel: Array.from({ length: 18 }, (_, index) => ({
+      id: `kd-${index + 1}`,
+      x: 420 + index * 210,
+      y: 220 + (index % 3) * 28,
+      collected: false,
+    })),
+    hazards: [
+      { type: "lowLaser", x: 1150, y: 258, width: 90, height: 16 },
+      { type: "spike", x: 1740, y: 420, width: 40, height: 20 },
+      { type: "lowLaser", x: 2680, y: 318, width: 110, height: 16 },
+      { type: "spike", x: 3340, y: 420, width: 40, height: 20 },
+    ],
+    checkpoints: [
+      { x: 980, active: false },
+      { x: 2120, active: false },
+      { x: 3240, active: false },
+    ],
+  };
+}
+
+function buildLaserRunCourse() {
+  return {
+    worldWidth: 4380,
+    platforms: [
+      { x: 0, y: 440, width: 680, height: 20 },
+      { x: 980, y: 400, width: 220, height: 20 },
+      { x: 1460, y: 330, width: 220, height: 20 },
+      { x: 1920, y: 280, width: 220, height: 20 },
+      { x: 2440, y: 340, width: 220, height: 20 },
+      { x: 2940, y: 260, width: 220, height: 20 },
+      { x: 3440, y: 330, width: 220, height: 20 },
+      { x: 3920, y: 300, width: 300, height: 20 },
+    ],
+    ramps: [
+      { x: 680, y1: 440, y2: 400, width: 300 },
+      { x: 1200, y1: 400, y2: 330, width: 260 },
+      { x: 1680, y1: 330, y2: 280, width: 240 },
+      { x: 2140, y1: 280, y2: 340, width: 300 },
+      { x: 2660, y1: 340, y2: 260, width: 280 },
+      { x: 3160, y1: 260, y2: 330, width: 280 },
+      { x: 3660, y1: 330, y2: 300, width: 260 },
+    ],
+    hazards: [
+      { type: "lowLaser", x: 840, y: 418, width: 84, height: 16 },
+      { type: "lowLaser", x: 1320, y: 348, width: 84, height: 16 },
+      { type: "lowLaser", x: 1820, y: 298, width: 84, height: 16 },
+      { type: "lowLaser", x: 2320, y: 358, width: 92, height: 16 },
+      { type: "lowLaser", x: 2820, y: 278, width: 92, height: 16 },
+      { type: "lowLaser", x: 3340, y: 348, width: 92, height: 16 },
+      { type: "spike", x: 1160, y: 380, width: 40, height: 20 },
+      { type: "spike", x: 2580, y: 320, width: 40, height: 20 },
+      { type: "spike", x: 3840, y: 420, width: 40, height: 20 },
+    ],
+    checkpoints: [
+      { x: 1140, active: false },
+      { x: 2460, active: false },
+      { x: 3620, active: false },
+    ],
+  };
+}
+
+function startPortalChallenge(type, name, course, triggerPlayer, options = {}) {
+  game.portalChallenge.active = true;
+  game.portalChallenge.type = type;
+  game.portalChallenge.name = name;
+  game.portalChallenge.finishX = course.worldWidth - 90;
+  game.portalChallenge.startedFromLevel = game.currentLevel;
+  game.portalChallenge.rewardKeys = options.rewardKeys || 4;
+  game.motoChallenge.active = type === "moto";
+  game.motoChallenge.finishX = game.portalChallenge.finishX;
+  game.motoChallenge.startedFromLevel = game.currentLevel;
+
+  game.worldWidth = course.worldWidth;
+  game.platforms = course.platforms || [];
+  game.ramps = course.ramps || [];
+  game.boostPads = course.boostPads || [];
+  game.loopTheLoops = course.loopTheLoops || [];
+  game.hazards = course.hazards || [];
+  game.enemies = course.enemies || [];
+  game.keysInLevel = course.keysInLevel || [];
+  game.checkpoints = course.checkpoints || [];
+  game.doors = [];
+  game.clueMarkers = [];
+  game.bikePortals = [];
+  game.respawnX = 120;
+
+  for (const player of game.players) {
+    player.x = 120 + player.id * 36;
+    player.y = 320;
+    player.vx = type === "moto" ? 5.8 : 0;
+    player.vy = 0;
+    player.onBike = type === "moto";
+    player.bikeAngle = 0;
+    player.bikeAngularVelocity = 0;
+    player.bikeAirborne = false;
+    player.bikeSpin = 0;
+    player.boostCooldown = 0;
+    player.loopState = null;
+    player.input.upHeld = type === "moto" && (player.id === triggerPlayer.id || player.id === 0);
+    player.input.upPressed = false;
+  }
+
+  game.cameraX = 0;
+  setMessage(options.message || `${name} portal opened. Clear the challenge for bonus keys.`, 220);
 }
 
 function buildMotoChallengeCourse() {
@@ -487,50 +656,24 @@ function buildMotoChallengeCourse() {
 }
 
 function beginMotoChallenge(triggerPlayer) {
-  const course = buildMotoChallengeCourse();
-  game.motoChallenge.active = true;
-  game.motoChallenge.finishX = course.worldWidth - 90;
-  game.motoChallenge.startedFromLevel = game.currentLevel;
+  startPortalChallenge("moto", "Moto Trial", buildMotoChallengeCourse(), triggerPlayer, {
+    rewardKeys: 6,
+    message: "Teleported to Moto Trial X. Flow track online: boosts, loops, and long rhythm sections.",
+  });
+}
 
-  game.worldWidth = course.worldWidth;
-  game.platforms = course.platforms;
-  game.ramps = course.ramps;
-  game.boostPads = course.boostPads;
-  game.loopTheLoops = course.loopTheLoops;
-  game.hazards = course.hazards;
-  game.enemies = [];
-  game.keysInLevel = [];
-  game.checkpoints = [
-    { x: 1280, active: false },
-    { x: 2760, active: false },
-    { x: 4260, active: false },
-    { x: 5660, active: false },
-    { x: 7080, active: false },
-    { x: 8420, active: false },
-    { x: 9340, active: false },
-  ];
-  game.doors = [];
-  game.clueMarkers = [];
-  game.bikePortals = [];
-  game.respawnX = 120;
+function beginKeyDashChallenge(triggerPlayer) {
+  startPortalChallenge("keys", "Key Dash", buildKeyDashCourse(), triggerPlayer, {
+    rewardKeys: 5,
+    message: "Key Dash portal open. Sweep the key line and race to the exit.",
+  });
+}
 
-  for (const player of game.players) {
-    player.x = 120 + player.id * 36;
-    player.y = 320;
-    player.vx = 5.8;
-    player.vy = 0;
-    player.onBike = true;
-    player.bikeAngle = 0;
-    player.bikeAngularVelocity = 0;
-    player.bikeAirborne = false;
-    player.bikeSpin = 0;
-    player.boostCooldown = 0;
-    player.loopState = null;
-    player.input.upHeld = player.id === triggerPlayer.id || player.id === 0;
-  }
-
-  game.cameraX = 0;
-  setMessage("Teleported to Moto Trial X. Flow track online: boosts, loops, and long rhythm sections.", 220);
+function beginLaserRunChallenge(triggerPlayer) {
+  startPortalChallenge("laser", "Laser Run", buildLaserRunCourse(), triggerPlayer, {
+    rewardKeys: 5,
+    message: "Laser Run engaged. Roll under beams and sprint to extraction.",
+  });
 }
 
 function setupWorld(levelNumber = 1) {
@@ -1179,6 +1322,12 @@ function startGame() {
   game.motoChallenge.active = false;
   game.motoChallenge.finishX = 0;
   game.motoChallenge.startedFromLevel = selectedLevel;
+  game.portalChallenge.active = false;
+  game.portalChallenge.type = null;
+  game.portalChallenge.name = "";
+  game.portalChallenge.finishX = 0;
+  game.portalChallenge.startedFromLevel = selectedLevel;
+  game.portalChallenge.rewardKeys = 0;
   game.discoveredKeyIds = new Set();
   setupWorld(selectedLevel);
   game.running = true;
@@ -1245,7 +1394,7 @@ function triggerRespawn(player, reason) {
   player.onWall = false;
   player.wallDir = 0;
   player.wallClingFrames = 0;
-  player.onBike = game.motoChallenge.active || game.bikePortals.some((portal) => portal.used);
+  player.onBike = isMotoChallengeActive() || game.bikePortals.some((portal) => portal.used && portal.type === "moto");
   player.bikeAngle = 0;
   player.bikeAngularVelocity = 0;
   player.bikeAirborne = false;
@@ -1303,11 +1452,6 @@ function applyDoorBlock(player, prevX) {
 }
 
 function activateBikeMode(player) {
-  if (!game.motoChallenge.active) {
-    beginMotoChallenge(player);
-    return;
-  }
-
   player.onBike = true;
   player.rolling = false;
   player.rollTimer = 0;
@@ -1318,6 +1462,25 @@ function activateBikeMode(player) {
   player.vx = Math.max(player.vx, 6.2);
   player.vy = 0;
   setMessage(`${player.label} entered Bike Zone! Moto controls active.`, 160);
+}
+
+function activatePortal(portal, player) {
+  if (portal.type === "moto") {
+    beginMotoChallenge(player);
+    return;
+  }
+
+  if (portal.type === "keys") {
+    beginKeyDashChallenge(player);
+    return;
+  }
+
+  if (portal.type === "laser") {
+    beginLaserRunChallenge(player);
+    return;
+  }
+
+  activateBikeMode(player);
 }
 
 function updateBikePlayer(player) {
@@ -1759,7 +1922,7 @@ function updatePlayer(player) {
     if (portal.used) continue;
     if (!rectsOverlap(pHitbox, portal)) continue;
     portal.used = true;
-    activateBikeMode(p);
+    activatePortal(portal, p);
     break;
   }
 
@@ -2631,17 +2794,32 @@ function drawWorld(ctx) {
       glow.addColorStop(0, "rgba(74, 215, 209, 0.26)");
       glow.addColorStop(1, "rgba(74, 215, 209, 0)");
     } else {
-      glow.addColorStop(0, "rgba(255, 142, 62, 0.62)");
+      const glowColor = portal.type === "keys"
+        ? "rgba(255, 214, 74, 0.66)"
+        : portal.type === "laser"
+          ? "rgba(78, 194, 255, 0.66)"
+          : "rgba(255, 142, 62, 0.62)";
+      glow.addColorStop(0, glowColor);
       glow.addColorStop(1, "rgba(255, 142, 62, 0)");
     }
     ctx.fillStyle = glow;
     ctx.fillRect(portal.x - 30, portal.y - 22, portal.width + 60, portal.height + 44);
 
     const frame = ctx.createLinearGradient(portal.x, portal.y, portal.x + portal.width, portal.y + portal.height);
-    frame.addColorStop(0, portal.used ? "rgba(99, 195, 191, 0.9)" : "rgba(255, 198, 122, 0.95)");
-    frame.addColorStop(1, portal.used ? "rgba(74, 215, 209, 0.86)" : "rgba(255, 113, 61, 0.95)");
+    frame.addColorStop(0, portal.used ? "rgba(99, 195, 191, 0.9)" : (portal.colors?.[0] || "rgba(255, 198, 122, 0.95)"));
+    frame.addColorStop(1, portal.used ? "rgba(74, 215, 209, 0.86)" : (portal.colors?.[1] || "rgba(255, 113, 61, 0.95)"));
     ctx.fillStyle = frame;
     drawRoundedRect(ctx, portal.x, portal.y, portal.width, portal.height, 20, frame, "rgba(255,255,255,0.4)", 2);
+
+    if (!portal.used && portal.label) {
+      ctx.fillStyle = "rgba(10, 18, 28, 0.74)";
+      ctx.fillRect(portal.x - 30, portal.y - 24, 106, 18);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+      ctx.strokeRect(portal.x - 30, portal.y - 24, 106, 18);
+      ctx.fillStyle = "#f4fbff";
+      ctx.font = "700 11px Nunito";
+      ctx.fillText(portal.label, portal.x - 22, portal.y - 11);
+    }
   }
 
   for (const door of game.doors) {
@@ -2777,17 +2955,21 @@ function drawHud(ctx) {
   const bikeActive = game.players.some((player) => player.onBike);
   const bikePortalRemaining = game.bikePortals.some((portal) => !portal.used);
   ctx.font = "700 14px Nunito";
-  if (game.motoChallenge.active) {
+  if (isMotoChallengeActive()) {
     ctx.fillStyle = "#9df7ff";
     ctx.fillText("Moto Trial: finish line clears this level instantly", 470, 56);
     ctx.fillText("Controls: Up accelerate, Down brake, Left/Right tilt and flip", 470, 76);
     ctx.fillText("Hit orange boost pads and keep speed through loop-the-loops", 470, 96);
+  } else if (isPortalChallengeActive()) {
+    ctx.fillStyle = "#9df7ff";
+    ctx.fillText(`${game.portalChallenge.name}: clear the portal mini-game to finish the level`, 470, 56);
+    ctx.fillText("Race forward, grab rewards, and avoid traps before the finish line", 470, 76);
   } else if (bikeActive) {
     ctx.fillStyle = "#9df7ff";
     ctx.fillText("Bike mode: Up accelerate, Down brake, Left/Right tilt for flips", 470, 56);
   } else if (bikePortalRemaining) {
     ctx.fillStyle = "#ffd9a8";
-    ctx.fillText("Hit the glowing portal to teleport into the Moto Trial", 470, 56);
+    ctx.fillText("Hit a glowing portal to jump into a mini-game challenge", 470, 56);
   }
 
   if (game.message) {
@@ -2905,9 +3087,9 @@ function update() {
 
   const allDoorsSolved = game.doors.every((door) => door.solved);
 
-  if (game.motoChallenge.active && anchorPlayer.x >= game.motoChallenge.finishX) {
-    game.save.keys += 6;
-    game.missionNote.textContent = `Moto Trial cleared! Level ${game.currentLevel} completed.`;
+  if (isPortalChallengeActive() && anchorPlayer.x >= game.portalChallenge.finishX) {
+    game.save.keys += game.portalChallenge.rewardKeys;
+    game.missionNote.textContent = `${game.portalChallenge.name} cleared! Level ${game.currentLevel} completed.`;
     finishRun();
     requestAnimationFrame(update);
     return;
