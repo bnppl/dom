@@ -88,6 +88,7 @@ const defaultSave = {
   partySize: 1,
   selectedLevel: 1,
   unlockedLevel: 1,
+  musicEnabled: true,
   upgrades: {
     speed: 0,
     jump: 0,
@@ -118,6 +119,7 @@ function loadSave() {
 
     return {
       keys: Number.isFinite(parsed.keys) ? parsed.keys : 0,
+      musicEnabled: typeof parsed.musicEnabled === "boolean" ? parsed.musicEnabled : true,
       selectedSkin:
         skins.some((skin) => skin.id === parsed.selectedSkin) ? parsed.selectedSkin : "rookie",
       partySize:
@@ -158,6 +160,7 @@ const game = {
   canvas: document.getElementById("game"),
   menu: document.getElementById("menu"),
   skinList: document.getElementById("skinList"),
+  musicToggleBtn: document.getElementById("musicToggleBtn"),
   keyCount: document.getElementById("keyCount"),
   missionNote: document.getElementById("missionNote"),
   partySizeSelect: document.getElementById("partySize"),
@@ -209,11 +212,128 @@ const game = {
   rushTimer: 0,
   paceMultiplier: 1,
   paceTier: 0,
+  musicEnabled: true,
+  audioCtx: null,
+  audioMasterGain: null,
+  nextMusicTime: 0,
+  musicStep: 0,
 };
 
 const touchPointers = new Map();
 
 game.ctx = game.canvas.getContext("2d");
+game.musicEnabled = game.save.musicEnabled !== false;
+
+function updateMusicButtonLabel() {
+  if (!game.musicToggleBtn) return;
+  game.musicToggleBtn.textContent = game.musicEnabled ? "Music: On" : "Music: Off";
+}
+
+function createMusicNote(freq, startTime, duration, gainLevel, type = "sine") {
+  if (!game.audioCtx || !game.audioMasterGain || freq <= 0) return;
+
+  const osc = game.audioCtx.createOscillator();
+  const gain = game.audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.linearRampToValueAtTime(gainLevel, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  osc.connect(gain);
+  gain.connect(game.audioMasterGain);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function ensureMusicEngine() {
+  if (game.audioCtx) return;
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return;
+
+  game.audioCtx = new AudioCtor();
+  game.audioMasterGain = game.audioCtx.createGain();
+  game.audioMasterGain.gain.value = 0.08;
+  game.audioMasterGain.connect(game.audioCtx.destination);
+  game.nextMusicTime = game.audioCtx.currentTime + 0.05;
+  game.musicStep = 0;
+}
+
+function resetMusicTimeline() {
+  if (!game.audioCtx) return;
+  game.nextMusicTime = game.audioCtx.currentTime + 0.05;
+}
+
+function scheduleBackgroundMusic() {
+  if (!game.audioCtx || game.audioCtx.state !== "running") return;
+  if (game.nextMusicTime < game.audioCtx.currentTime - 0.5) {
+    resetMusicTimeline();
+  }
+
+  const lookAhead = 0.22;
+  const pace = Math.max(1, game.paceMultiplier || 1);
+  const stepDuration = Math.max(0.12, 0.2 - (pace - 1) * 0.06);
+  const roots = [130.81, 155.56, 174.61, 146.83];
+  const leadOffsets = [0, 3, 5, 7, 10, 7, 5, 3, 0, 3, 7, 10, 12, 10, 7, 3];
+
+  while (game.nextMusicTime < game.audioCtx.currentTime + lookAhead) {
+    const step = game.musicStep % 16;
+    const root = roots[Math.floor(game.musicStep / 16) % roots.length];
+
+    if (step % 4 === 0 || step % 4 === 2) {
+      createMusicNote(root, game.nextMusicTime, stepDuration * 1.8, 0.065, "triangle");
+    }
+
+    if (step % 2 === 0) {
+      const leadFreq = root * Math.pow(2, leadOffsets[step] / 12);
+      createMusicNote(leadFreq, game.nextMusicTime, stepDuration * 0.95, 0.03, "sawtooth");
+    }
+
+    game.nextMusicTime += stepDuration;
+    game.musicStep += 1;
+  }
+}
+
+function syncMusicPlaybackState() {
+  if (!game.musicEnabled) {
+    if (game.audioCtx && game.audioCtx.state === "running") {
+      game.audioCtx.suspend().catch(() => {});
+    }
+    return;
+  }
+
+  if (!game.running || game.paused) {
+    if (game.audioCtx && game.audioCtx.state === "running") {
+      game.audioCtx.suspend().catch(() => {});
+    }
+    return;
+  }
+
+  ensureMusicEngine();
+  if (!game.audioCtx) return;
+  if (game.audioCtx.state !== "running") {
+    game.audioCtx.resume().then(() => {
+      resetMusicTimeline();
+    }).catch(() => {});
+    return;
+  }
+
+  scheduleBackgroundMusic();
+}
+
+function setMusicEnabled(enabled) {
+  game.musicEnabled = enabled;
+  game.save.musicEnabled = enabled;
+  updateMusicButtonLabel();
+
+  if (enabled) {
+    ensureMusicEngine();
+    syncMusicPlaybackState();
+  } else if (game.audioCtx && game.audioCtx.state === "running") {
+    game.audioCtx.suspend().catch(() => {});
+  }
+
+  saveProgress();
+}
 
 function createPlayer(index) {
   return {
@@ -1064,6 +1184,7 @@ function startGame() {
   game.running = true;
   game.menu.classList.add("hidden");
   game.overlay.classList.add("hidden");
+  syncMusicPlaybackState();
   setMessage(`Level ${selectedLevel} started. Team size: ${selectedParty}.`);
   saveProgress();
 }
@@ -1463,46 +1584,6 @@ function updateBikePlayer(player) {
     if (portal.used) continue;
     if (!rectsOverlap(hitbox, portal)) continue;
     portal.used = true;
-  }
-
-  for (const pad of game.boostPads) {
-    const padGradient = ctx.createLinearGradient(pad.x, pad.y - pad.height, pad.x, pad.y + 2);
-    padGradient.addColorStop(0, "#ffd96b");
-    padGradient.addColorStop(1, "#ff8d2f");
-    ctx.fillStyle = padGradient;
-    ctx.fillRect(pad.x, pad.y - pad.height, pad.width, pad.height);
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    for (let x = pad.x + 8; x <= pad.x + pad.width - 10; x += 16) {
-      ctx.beginPath();
-      ctx.moveTo(x, pad.y - pad.height + 2);
-      ctx.lineTo(x + 8, pad.y - pad.height / 2);
-      ctx.lineTo(x, pad.y - 2);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-
-  for (const loop of game.loopTheLoops) {
-    ctx.strokeStyle = "#c12e2e";
-    ctx.lineWidth = 14;
-    ctx.beginPath();
-    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#f7fbff";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.setLineDash([12, 8]);
-    ctx.strokeStyle = "#d73636";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(loop.cx, loop.cy, loop.radius - 2, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
   }
 
   for (const key of game.keysInLevel) {
@@ -2416,6 +2497,46 @@ function drawWorld(ctx) {
     }
   }
 
+  for (const pad of game.boostPads) {
+    const padGradient = ctx.createLinearGradient(pad.x, pad.y - pad.height, pad.x, pad.y + 2);
+    padGradient.addColorStop(0, "#ffd96b");
+    padGradient.addColorStop(1, "#ff8d2f");
+    ctx.fillStyle = padGradient;
+    ctx.fillRect(pad.x, pad.y - pad.height, pad.width, pad.height);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    for (let x = pad.x + 8; x <= pad.x + pad.width - 10; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, pad.y - pad.height + 2);
+      ctx.lineTo(x + 8, pad.y - pad.height / 2);
+      ctx.lineTo(x, pad.y - 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  for (const loop of game.loopTheLoops) {
+    ctx.strokeStyle = "#c12e2e";
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#f7fbff";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([12, 8]);
+    ctx.strokeStyle = "#d73636";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(loop.cx, loop.cy, loop.radius - 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   for (const key of game.keysInLevel) {
     if (key.collected) continue;
     const keyGlow = ctx.createRadialGradient(key.x, key.y, 2, key.x, key.y, 18);
@@ -2708,6 +2829,8 @@ function drawHud(ctx) {
 }
 
 function update() {
+  syncMusicPlaybackState();
+
   if (!game.running || game.paused) {
     requestAnimationFrame(update);
     return;
@@ -2856,6 +2979,11 @@ function onKeyDown(event) {
     game.overlay.classList.toggle("hidden", !game.paused);
     game.overlay.textContent = game.paused ? "Paused" : "";
   }
+
+  if (event.code === "KeyM") {
+    ensureMusicEngine();
+    setMusicEnabled(!game.musicEnabled);
+  }
 }
 
 function onKeyUp(event) {
@@ -2875,7 +3003,17 @@ function bindEvents() {
     saveProgress();
   }
 
-  game.startBtn.addEventListener("click", startGame);
+  game.startBtn.addEventListener("click", () => {
+    ensureMusicEngine();
+    startGame();
+  });
+  updateMusicButtonLabel();
+  if (game.musicToggleBtn) {
+    game.musicToggleBtn.addEventListener("click", () => {
+      ensureMusicEngine();
+      setMusicEnabled(!game.musicEnabled);
+    });
+  }
   game.partySizeSelect.value = String(game.save.partySize || 1);
   renderLevelOptions();
   renderUpgradeShop();
